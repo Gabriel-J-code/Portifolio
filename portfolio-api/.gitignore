@@ -1,5 +1,8 @@
 HELP.md
 target/
+
+### Segredos locais ###
+.env
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
