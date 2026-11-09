@@ -15,7 +15,7 @@ public class DadosGerais {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String texto;
 
     private String disponibilidade;
