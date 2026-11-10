@@ -4,7 +4,7 @@ API REST que alimenta o portfólio pessoal de **Gabriel de Jesus**: projetos (P&
 
 O site público (Flutter Web) só **lê** os dados. O cadastro é feito por um painel administrativo privado, que usa os endpoints protegidos desta API.
 
-> **Status:** em desenvolvimento. Projetos, Tags, Competências e Contatos estão prontos e testados. Veja o [Roadmap](#roadmap).
+> **Status:** em desenvolvimento. Todo o conteúdo do site (Projetos, Tags, Competências, Contatos e Dados Gerais) está pronto e testado; falta a autenticação definitiva. Veja o [Roadmap](#roadmap).
 
 ## Stack
 
@@ -76,6 +76,9 @@ Abra **http://localhost:8080/swagger-ui.html**.
 | **Competências** `/api/competencias` | `GET /` (filtro `?categoria=LINGUAGEM\|FERRAMENTA\|TECNICA\|SOFT_SKILL`)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Contatos** `/api/contatos` | `GET /` (já na ordem de exibição)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Tags** `/api/tags` | `GET /` (ordem alfabética)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
+| **Dados Gerais** `/api/dados-gerais` | `GET /` (`404` até a primeira configuração) | `PUT /` (cria na primeira vez, substitui nas seguintes) |
+
+**Dados Gerais** é um registro único (a seção "Sobre": texto de apresentação, selo de disponibilidade e foto), por isso não tem `{id}`, `POST` nem `DELETE`.
 
 As tags são as etiquetas de tecnologia dos projetos (vinculadas pelo campo `tagIds`). O nome é único **sem diferenciar maiúsculas de minúsculas** (`java` conflita com `Java`), e uma tag em uso por algum projeto não pode ser apagada (`409`): primeiro remova-a dos projetos.
 
@@ -187,8 +190,8 @@ src/test/java/dev/gabriel/portfolio_api/
 - [x] Competências: CRUD por categoria
 - [x] Contatos: CRUD com ordem de exibição e validação do valor por tipo
 - [x] Tags: CRUD com nome único e proteção contra apagar tag em uso
+- [x] Dados Gerais: registro único (GET + PUT)
 - [x] Swagger, tratamento de erros padronizado, testes de integração
-- [ ] Dados Gerais
 - [ ] Login com 2FA por e-mail + JWT (substituindo o HTTP Basic)
 - [ ] CORS para o domínio do front-end
 - [ ] Cache com Redis nas consultas públicas
