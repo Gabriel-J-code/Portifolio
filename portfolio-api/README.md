@@ -76,7 +76,7 @@ Abra **http://localhost:8080/swagger-ui.html**.
 | **Competências** `/api/competencias` | `GET /` (filtro `?categoria=LINGUAGEM\|FERRAMENTA\|TECNICA\|SOFT_SKILL`)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Contatos** `/api/contatos` | `GET /` (já na ordem de exibição)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 
-Os contatos aceitam os tipos `LINKEDIN`, `GITHUB`, `EMAIL` e `CURRICULO`. O `valor` é validado conforme o tipo: endereço de e-mail para `EMAIL` e link `http(s)` para os demais.
+Os contatos aceitam os tipos `LINKEDIN`, `GITHUB`, `EMAIL` e `CURRICULO`, com **no máximo um contato de cada tipo**. O `valor` é validado conforme o tipo: endereço de e-mail para `EMAIL` e link `http(s)` para os demais.
 
 A documentação completa de cada endpoint, com os modelos de requisição e resposta, fica no Swagger.
 
@@ -120,6 +120,7 @@ Os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-editor.o
 | `400` | JSON mal formatado, campo inválido ou regra de negócio violada (ex.: `anoFim` antes de `anoInicio`) |
 | `401` | Endpoint protegido sem credenciais ou com credenciais erradas |
 | `404` | Recurso (ou tag referenciada) não encontrado |
+| `409` | Conflito com dados existentes (ex.: um segundo contato do mesmo tipo) |
 
 ## Autenticação
 

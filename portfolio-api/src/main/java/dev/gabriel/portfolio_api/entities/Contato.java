@@ -16,7 +16,7 @@ public class Contato {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, unique = true) // no maximo um contato de cada tipo
     private TipoContato tipo;
     @Column(nullable = false)
     private String valor; // URL, ou endereco de e-mail quando tipo = EMAIL

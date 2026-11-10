@@ -3,6 +3,7 @@ package dev.gabriel.portfolio_api.controllers;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -17,11 +18,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 
 import com.jayway.jsonpath.JsonPath;
 
 import dev.gabriel.portfolio_api.IntegracaoTest;
+import dev.gabriel.portfolio_api.entities.Contato;
+import dev.gabriel.portfolio_api.entities.TipoContato;
 import dev.gabriel.portfolio_api.repositories.ContatoRepository;
 
 class ContatoControllerTest extends IntegracaoTest {
@@ -146,6 +150,53 @@ class ContatoControllerTest extends IntegracaoTest {
                         .contentType(MediaType.APPLICATION_JSON).content(json(tipo, valor, 1)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.erros.valor", containsString("para o tipo " + tipo)));
+    }
+
+    // --- um contato por tipo ---
+
+    @Test
+    @DisplayName("POST de um segundo contato do mesmo tipo -> 409 e nada e salvo")
+    void tipoDuplicadoNoCadastro() throws Exception {
+        criar("LINKEDIN", "https://www.linkedin.com/in/exemplo", 1);
+
+        mockMvc.perform(post(URL).with(comoAdmin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json("LINKEDIN", "https://www.linkedin.com/in/outro", 2)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail", containsString("Ja existe um contato do tipo LINKEDIN")));
+
+        mockMvc.perform(get(URL)).andExpect(jsonPath("$[*].tipo", contains("LINKEDIN")));
+    }
+
+    @Test
+    @DisplayName("PUT trocando para um tipo que ja existe em outro contato -> 409")
+    void tipoDuplicadoNaAtualizacao() throws Exception {
+        criar("LINKEDIN", "https://www.linkedin.com/in/exemplo", 1);
+        int github = criar("GITHUB", "https://github.com/exemplo", 2);
+
+        mockMvc.perform(put(URL + "/" + github).with(comoAdmin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json("LINKEDIN", "https://www.linkedin.com/in/outro", 2)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("PUT mantendo o proprio tipo nao conta como duplicado -> 200")
+    void atualizarMantendoTipo() throws Exception {
+        int linkedin = criar("LINKEDIN", "https://www.linkedin.com/in/exemplo", 1);
+
+        mockMvc.perform(put(URL + "/" + linkedin).with(comoAdmin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json("LINKEDIN", "https://www.linkedin.com/in/novo-endereco", 1)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valor").value("https://www.linkedin.com/in/novo-endereco"));
+    }
+
+    @Test
+    @DisplayName("Mesmo pulando o service, o banco recusa o duplicado (restricao UNIQUE)")
+    void bancoRecusaDuplicado() {
+        contatoRepository.saveAndFlush(new Contato(0, TipoContato.EMAIL, "a@gmail.com", null, 1));
+
+        assertThrows(DataIntegrityViolationException.class, () -> contatoRepository
+                .saveAndFlush(new Contato(0, TipoContato.EMAIL, "b@gmail.com", null, 2)));
     }
 
     // --- outros erros ---

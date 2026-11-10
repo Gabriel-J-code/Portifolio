@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.gabriel.portfolio_api.dto.ContatoRequest;
 import dev.gabriel.portfolio_api.dto.ContatoResponse;
 import dev.gabriel.portfolio_api.entities.Contato;
+import dev.gabriel.portfolio_api.exceptions.ConflitoException;
 import dev.gabriel.portfolio_api.exceptions.RecursoNaoEncontradoException;
 import dev.gabriel.portfolio_api.repositories.ContatoRepository;
 
@@ -33,6 +34,9 @@ public class ContatoService {
 
     @Transactional
     public ContatoResponse salvar(ContatoRequest dados) {
+        if (contatoRepository.existsByTipo(dados.tipo())) {
+            throw tipoDuplicado(dados);
+        }
         Contato contato = new Contato();
         aplicarDados(contato, dados);
         return ContatoResponse.de(contatoRepository.save(contato));
@@ -41,6 +45,9 @@ public class ContatoService {
     @Transactional
     public ContatoResponse atualizar(int id, ContatoRequest dados) {
         Contato contato = buscarEntidade(id);
+        if (contatoRepository.existsByTipoAndIdNot(dados.tipo(), id)) {
+            throw tipoDuplicado(dados);
+        }
         aplicarDados(contato, dados); // dirty checking gera o UPDATE no commit
         return ContatoResponse.de(contato);
     }
@@ -55,6 +62,11 @@ public class ContatoService {
     private Contato buscarEntidade(int id) {
         return contatoRepository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Contato nao encontrado com o ID: " + id));
+    }
+
+    private ConflitoException tipoDuplicado(ContatoRequest dados) {
+        return new ConflitoException("Ja existe um contato do tipo " + dados.tipo()
+                + "; edite o existente em vez de cadastrar outro");
     }
 
     private void aplicarDados(Contato contato, ContatoRequest dados) {

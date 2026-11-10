@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -40,6 +41,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RegraDeNegocioException.class)
     public ProblemDetail tratarRegraDeNegocio(RegraDeNegocioException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(ConflitoException.class)
+    public ProblemDetail tratarConflito(ConflitoException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /**
+     * Rede de seguranca: o BANCO recusou a operacao por violar uma restricao
+     * (UNIQUE, NOT NULL, chave estrangeira...). Normalmente o service ja barra antes,
+     * mas isto cobre o que escapar (ex.: duas requisicoes simultaneas).
+     * A mensagem original traz SQL e nomes internos, entao nao e repassada ao cliente.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail tratarViolacaoDeIntegridade(DataIntegrityViolationException ex) {
+        logger.warn("Violacao de integridade no banco", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "A operacao conflita com dados ja existentes");
     }
 
     /**
