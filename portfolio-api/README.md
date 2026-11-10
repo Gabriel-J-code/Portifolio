@@ -35,17 +35,22 @@ cp .env.example .env
 | Variável | Para quê |
 |---|---|
 | `DB_PASSWORD` | Senha do usuário `sa` do SQL Server. Exige 8+ caracteres com maiúscula, minúscula, número e símbolo. Evite `$`. |
-| `ADMIN_PASSWORD` | Senha do usuário `admin`, usada nos endpoints protegidos (temporário, veja [Autenticação](#autenticação)). |
+| `ADMIN_PASSWORD` | Senha da conta do painel. Também é a senha do usuário `admin` do HTTP Basic temporário (veja [Autenticação](#autenticação)). |
+| `ADMIN_EMAIL` | E-mail da conta do painel e destino do código de acesso. Em desenvolvimento, qualquer endereço serve: o Mailpit captura tudo. |
+
+A conta do painel é criada automaticamente na **primeira** inicialização, se a tabela `acessos` estiver vazia. Mudar o `.env` depois **não** altera uma conta já existente.
 
 O `.env` está no `.gitignore` e **nunca** deve ser commitado. A aplicação o lê automaticamente (`spring.config.import`). Em produção, as mesmas chaves vêm de variáveis de ambiente reais.
 
-### 2. Suba o banco de dados
+### 2. Suba o banco de dados e o servidor de e-mail
 
 ```bash
 docker compose up -d
 ```
 
-Esse comando sobe o SQL Server na porta `1433` e cria o banco `portfolio` na primeira execução. Os dados ficam num volume Docker e sobrevivem quando o container é desligado.
+Esse comando sobe:
+- o **SQL Server** na porta `1433`, criando o banco `portfolio` na primeira execução. Os dados ficam num volume Docker e sobrevivem quando o container é desligado;
+- o **Mailpit**, um servidor de e-mail falso para desenvolvimento. Ele recebe os e-mails que a API envia (como o código de login) sem entregá-los a ninguém, e os mostra em **http://localhost:8025**.
 
 ```bash
 docker compose down      # para o banco (mantém os dados)
@@ -77,6 +82,7 @@ Abra **http://localhost:8080/swagger-ui.html**.
 | **Contatos** `/api/contatos` | `GET /` (já na ordem de exibição)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Tags** `/api/tags` | `GET /` (ordem alfabética)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Dados Gerais** `/api/dados-gerais` | `GET /` (`404` até a primeira configuração) | `PUT /` (cria na primeira vez, substitui nas seguintes) |
+| **Autenticação** `/api/auth` | `POST /login` (etapa 1 do login) | — |
 
 **Dados Gerais** é um registro único (a seção "Sobre": texto de apresentação, selo de disponibilidade e foto), por isso não tem `{id}`, `POST` nem `DELETE`.
 
@@ -127,17 +133,25 @@ Os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-editor.o
 | `401` | Endpoint protegido sem credenciais ou com credenciais erradas |
 | `404` | Recurso (ou tag referenciada) não encontrado |
 | `409` | Conflito com dados existentes (ex.: tag com nome repetido, segundo contato do mesmo tipo, apagar tag em uso) |
+| `503` | O e-mail com o código de acesso não pôde ser enviado (tente de novo) |
 
 ## Autenticação
 
 Leitura (`GET`) é pública. Escrita (`POST`/`PUT`/`DELETE`) exige login.
 
-**Hoje:** HTTP Basic com um único usuário `admin`, cuja senha vem de `ADMIN_PASSWORD`. É uma solução **temporária**, para permitir testar o CRUD.
+O login do painel tem **duas etapas obrigatórias** (2FA por e-mail):
 
-**Planejado:** login em duas etapas com JWT:
-1. `POST /api/auth/login` (e-mail + senha) → a API envia um código de 6 dígitos por e-mail.
-2. `POST /api/auth/verify-2fa` (código) → a API devolve um token JWT.
-3. O painel administrativo usa o token nas requisições de escrita.
+1. ✅ **`POST /api/auth/login`** com `{ "email", "senha" }`. Se estiverem corretos, a API gera um código de 6 dígitos, válido por 10 minutos, e o envia por e-mail. A resposta **não traz token**, só o e-mail mascarado e o prazo:
+   ```json
+   { "mensagem": "Codigo de acesso enviado por e-mail", "emailMascarado": "g******@exemplo.com", "expiraEm": "2026-11-10T21:05:36Z" }
+   ```
+   E-mail inexistente e senha errada recebem a **mesma** resposta `401`, para não revelar qual e-mail é o do painel.
+2. 🚧 **`POST /api/auth/verify-2fa`** com o código → a API devolve um token JWT. *(próxima etapa)*
+3. 🚧 O painel usa o token nas requisições de escrita.
+
+**Enquanto a etapa 2 não existe**, a escrita usa **HTTP Basic temporário** (usuário `admin`, senha `ADMIN_PASSWORD`), que será removido quando o JWT estiver pronto.
+
+Medidas de segurança aplicadas: senha e código guardados só como hash BCrypt, código gerado com `SecureRandom`, só o último código enviado vale, tempo de resposta igual para e-mail certo ou errado, e o código não fica salvo se o e-mail não puder ser enviado (`503`).
 
 ## Como testar
 
@@ -207,7 +221,8 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 - [x] Tags: CRUD com nome único e proteção contra apagar tag em uso
 - [x] Dados Gerais: registro único (GET + PUT)
 - [x] Swagger, tratamento de erros padronizado, testes de integração
-- [ ] Login com 2FA por e-mail + JWT (substituindo o HTTP Basic)
+- [x] Login etapa 1: senha + envio do código por e-mail (Mailpit em desenvolvimento)
+- [ ] Login etapa 2: verificação do código + JWT (substituindo o HTTP Basic)
 - [ ] Upload de imagens pelo painel (Google Cloud Storage), quando o painel existir
 - [ ] CORS para o domínio do front-end
 - [ ] Cache com Redis nas consultas públicas

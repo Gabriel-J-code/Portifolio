@@ -4,10 +4,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+
+import dev.gabriel.portfolio_api.services.EmailService;
 
 /**
  * Base dos testes de integracao: aplicacao completa (controllers, services, seguranca, JPA)
@@ -24,6 +27,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 @SpringBootTest(properties = {
         "ADMIN_USER=" + IntegracaoTest.ADMIN_USER,
         "ADMIN_PASSWORD=" + IntegracaoTest.ADMIN_SENHA,
+        "ADMIN_EMAIL=" + IntegracaoTest.ADMIN_EMAIL,
         "spring.jpa.show-sql=false",
         // Enquanto o container inicializa, o driver loga dezenas de "Prelogin error" (tentativas de conexao).
         // Sao esperados e inofensivos; so poluem a saida.
@@ -35,9 +39,20 @@ public abstract class IntegracaoTest {
 
     protected static final String ADMIN_USER = "admin";
     protected static final String ADMIN_SENHA = "senha-de-teste";
+    protected static final String ADMIN_EMAIL = "gabriel@exemplo.com";
 
     @Autowired
     protected MockMvc mockMvc;
+
+    /**
+     * O EmailService de verdade e substituido por um "duble" do Mockito: nenhum e-mail sai,
+     * e os testes podem conferir com que dados ele foi chamado (ex.: capturar o codigo do 2FA).
+     * Fica na classe base para todas as classes de teste compartilharem o MESMO contexto do Spring;
+     * um @MockitoBean diferente em cada classe forcaria subir outro contexto (e outro container).
+     * O Mockito "zera" o mock automaticamente depois de cada teste.
+     */
+    @MockitoBean
+    protected EmailService emailService;
 
     /** Adiciona o cabecalho "Authorization: Basic ..." com as credenciais de teste. */
     protected static RequestPostProcessor comoAdmin() {

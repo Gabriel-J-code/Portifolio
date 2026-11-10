@@ -42,6 +42,11 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
+		<!-- Envio de e-mail (codigo do 2FA) via SMTP -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
 		<!-- Bean Validation (@NotBlank, @NotNull, @Valid...) nos DTOs de entrada -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

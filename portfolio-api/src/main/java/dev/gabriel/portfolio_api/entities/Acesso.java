@@ -1,6 +1,6 @@
 package dev.gabriel.portfolio_api.entities;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,34 +9,36 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-@Entity 
+/**
+ * Credenciais do painel administrativo (uma unica linha: a conta do Gabriel).
+ * O 2FA e sempre obrigatorio: todo login exige senha + codigo enviado por e-mail.
+ */
+@Entity
 @Table(name = "acessos")
 public class Acesso {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     @Column(nullable = false, unique = true)
-    private String email;
+    private String email; // guardado em minusculas
 
-    
     @Column(nullable = false)
-    private String senha; // Armazenada com hash BCrypt
+    private String senha; // hash BCrypt, nunca o texto
 
-    // --- Campos extras para o 2FA via E-mail ---
+    // --- 2FA via e-mail ---
+    // Hash BCrypt do codigo de 6 digitos (o codigo em si so existe no e-mail).
+    // Se o banco vazar, um codigo ainda valido nao pode ser lido.
     @Column(name = "two_factor_code")
     private String twoFactorCode;
 
+    // Instant = momento absoluto (UTC), sem ambiguidade de fuso horario
     @Column(name = "two_factor_expires_at")
-    private LocalDateTime twoFactorCodeExpiresAt;
-
-    @Column(name = "enabled_2fa")
-    private boolean enabled2Fa = true;
+    private Instant twoFactorCodeExpiresAt;
 
     public Acesso() {
     }
 
-    public Acesso(int id, String email, String senha) {
-        this.id = id;
+    public Acesso(String email, String senha) {
         this.email = email;
         this.senha = senha;
     }
@@ -70,19 +72,11 @@ public class Acesso {
         this.twoFactorCode = twoFactorCode;
     }
 
-    public LocalDateTime getTwoFactorCodeExpiresAt() {
+    public Instant getTwoFactorCodeExpiresAt() {
         return twoFactorCodeExpiresAt;
     }
 
-    public void setTwoFactorCodeExpiresAt(LocalDateTime twoFactorCodeExpiresAt) {
+    public void setTwoFactorCodeExpiresAt(Instant twoFactorCodeExpiresAt) {
         this.twoFactorCodeExpiresAt = twoFactorCodeExpiresAt;
-    }
-
-    public boolean isEnabled2Fa() {
-        return enabled2Fa;
-    }
-
-    public void setEnabled2Fa(boolean enabled2Fa) {
-        this.enabled2Fa = enabled2Fa;
     }
 }

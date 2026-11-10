@@ -8,5 +8,6 @@ import dev.gabriel.portfolio_api.entities.Acesso;
 
 public interface AcessoRepository extends JpaRepository<Acesso, Integer> {
 
-    Optional<Acesso> findByEmail(String email);
+    // O e-mail e salvo em minusculas e o login normaliza a entrada; IgnoreCase e uma garantia extra
+    Optional<Acesso> findByEmailIgnoreCase(String email);
 }

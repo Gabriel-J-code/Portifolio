@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mail.MailException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +42,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(RegraDeNegocioException.class)
     public ProblemDetail tratarRegraDeNegocio(RegraDeNegocioException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(CredenciaisInvalidasException.class)
+    public ProblemDetail tratarCredenciaisInvalidas(CredenciaisInvalidasException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    /**
+     * O servidor de e-mail falhou (fora do ar, credencial errada...). 503 = problema temporario
+     * do nosso lado, nao do cliente. O detalhe tecnico vai so para o log.
+     */
+    @ExceptionHandler(MailException.class)
+    public ProblemDetail tratarFalhaDeEmail(MailException ex) {
+        logger.error("Falha ao enviar e-mail", ex);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Nao foi possivel enviar o e-mail agora; tente novamente em instantes");
     }
 
     @ExceptionHandler(ConflitoException.class)
