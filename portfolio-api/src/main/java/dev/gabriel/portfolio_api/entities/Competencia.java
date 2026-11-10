@@ -2,6 +2,8 @@ package dev.gabriel.portfolio_api.entities;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,8 +17,9 @@ public class Competencia {
     private int id;
     @Column (nullable = false)
     private String nome;
-    @Column (nullable = false)
-    private String categoria;
+    @Enumerated(EnumType.STRING) // grava o nome ("LINGUAGEM"), nao a posicao (0, 1...)
+    @Column (nullable = false, length = 20)
+    private CategoriaCompetencia categoria;
     @Column(name = "icon_url")
     private String iconUrl;
     private String cor;
@@ -24,7 +27,7 @@ public class Competencia {
     public Competencia() {
     }
 
-    public Competencia(int id, String nome, String categoria, String iconUrl, String cor) {
+    public Competencia(int id, String nome, CategoriaCompetencia categoria, String iconUrl, String cor) {
         this.id = id;
         this.nome = nome;
         this.categoria = categoria;
@@ -46,11 +49,11 @@ public class Competencia {
         this.nome = nome;
     }
 
-    public String getCategoria() {
+    public CategoriaCompetencia getCategoria() {
         return categoria;
     }
 
-    public void setCategoria(String categoria) {
+    public void setCategoria(CategoriaCompetencia categoria) {
         this.categoria = categoria;
     }
 
