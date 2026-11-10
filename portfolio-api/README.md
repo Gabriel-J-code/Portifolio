@@ -184,6 +184,21 @@ src/test/java/dev/gabriel/portfolio_api/
 
 **Fluxo de uma requisição:** `Controller` (HTTP + `@Valid`) → `Service` (regras + `@Transactional`) → `Repository` (JPA) → SQL Server. As entidades nunca saem do service: a API recebe e devolve DTOs.
 
+## Decisões de projeto
+
+Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora tem um caminho de evolução definido.
+
+| Decisão | Por quê |
+|---|---|
+| **Imagens hospedadas fora da API; o banco guarda só a URL** | Um único administrador cadastra poucas imagens, raramente: um upload próprio (armazenamento, credenciais, validação de arquivos) seria complexidade sem retorno agora. As imagens são hospedadas manualmente. **Evolução:** um endpoint de upload com uma interface `StorageService` (pasta local em desenvolvimento, Google Cloud Storage em produção), sem alterar o modelo atual, que já trabalha com URLs. |
+| **A API recebe e devolve DTOs, nunca entidades** | O cliente não escolhe `id` nem campos internos, a validação fica no contrato de entrada e o JSON público não muda quando o banco muda. |
+| **Categorias e tipos como enums fixos** | Evitam grupos duplicados por erro de digitação (`Linguagem` vs `Linguagens`). O banco reforça com uma `CHECK` constraint e a API responde `400` listando os valores aceitos. |
+| **Duplicados: validados no service e garantidos no banco** | O service dá uma mensagem clara (`409`); a restrição `UNIQUE` no banco cobre o que escapar, como duas requisições simultâneas. |
+| **Dados Gerais com ID fixo + `CHECK (id = 1)`** | Com autoincremento, "sempre o ID 1" não é garantido (registro recriado ou saltos de `IDENTITY` no SQL Server). Com ID fixo, o próprio banco impede uma segunda linha. |
+| **HTTP Basic temporário** | Permite testar a escrita enquanto o login com 2FA + JWT não existe. Será removido quando ele estiver pronto. |
+| **`ddl-auto=update` em desenvolvimento** | Agilidade enquanto o modelo muda. Ele não altera colunas existentes, então antes do deploy será substituído por migrações versionadas (Flyway). |
+| **Testes contra um SQL Server real (Testcontainers), não H2** | Um banco em memória diferente esconderia comportamentos do SQL Server, como `NVARCHAR(MAX)`, comparação sem diferenciar maiúsculas e as constraints. |
+
 ## Roadmap
 
 - [x] Projetos: CRUD, tags, imagens, filtros
@@ -193,6 +208,7 @@ src/test/java/dev/gabriel/portfolio_api/
 - [x] Dados Gerais: registro único (GET + PUT)
 - [x] Swagger, tratamento de erros padronizado, testes de integração
 - [ ] Login com 2FA por e-mail + JWT (substituindo o HTTP Basic)
+- [ ] Upload de imagens pelo painel (Google Cloud Storage), quando o painel existir
 - [ ] CORS para o domínio do front-end
 - [ ] Cache com Redis nas consultas públicas
 - [ ] Eventos assíncronos com RabbitMQ
