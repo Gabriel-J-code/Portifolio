@@ -1,19 +1,29 @@
 package dev.gabriel.portfolio_api.services;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.gabriel.portfolio_api.dto.ProjetoRequest;
+import dev.gabriel.portfolio_api.dto.ProjetoResponse;
 import dev.gabriel.portfolio_api.entities.Imagem;
 import dev.gabriel.portfolio_api.entities.Projeto;
 import dev.gabriel.portfolio_api.entities.Tag;
 import dev.gabriel.portfolio_api.entities.TipoProjeto;
 import dev.gabriel.portfolio_api.exceptions.RecursoNaoEncontradoException;
+import dev.gabriel.portfolio_api.exceptions.RegraDeNegocioException;
 import dev.gabriel.portfolio_api.repositories.ProjetoRepository;
 import dev.gabriel.portfolio_api.repositories.TagRepository;
 
+/**
+ * Recebe e devolve DTOs; a entidade Projeto nao sai daqui.
+ * A conversao para ProjetoResponse acontece dentro da transacao, entao tags e imagens
+ * (carregadas sob demanda/LAZY) ainda podem ser lidas do banco nesse momento.
+ */
 @Service
 public class ProjetoService {
 
@@ -28,99 +38,107 @@ public class ProjetoService {
 
     /** Todos os projetos, ou apenas os de um carrossel quando "tipo" for informado. */
     @Transactional(readOnly = true)
-    public List<Projeto> listar(TipoProjeto tipo) {
-        if (tipo == null) {
-            return projetoRepository.findAllByOrderByAnoInicioDesc();
-        }
-        return projetoRepository.findByTipoOrderByAnoInicioDesc(tipo);
+    public List<ProjetoResponse> listar(TipoProjeto tipo) {
+        List<Projeto> projetos = (tipo == null)
+                ? projetoRepository.findAllByOrderByAnoInicioDesc()
+                : projetoRepository.findByTipoOrderByAnoInicioDesc(tipo);
+        return projetos.stream().map(ProjetoResponse::de).toList();
     }
 
     @Transactional(readOnly = true)
-    public Projeto buscarPorId(int id) {
-        return projetoRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Projeto nao encontrado com o ID: " + id));
+    public ProjetoResponse buscarPorId(int id) {
+        return ProjetoResponse.de(buscarEntidade(id));
     }
 
     @Transactional(readOnly = true)
-    public List<Projeto> listarPorTag(int tagId) {
-        return projetoRepository.findByTagsId(tagId);
+    public List<ProjetoResponse> listarPorTag(int tagId) {
+        return projetoRepository.findByTagsId(tagId).stream().map(ProjetoResponse::de).toList();
     }
 
     @Transactional
-    public Projeto salvar(Projeto projeto) {
-        validarPeriodo(projeto);
-        projeto.setTags(carregarTags(projeto.getTags()));
-        vincularImagens(projeto, projeto.getImagens());
-        return projetoRepository.save(projeto);
+    public ProjetoResponse salvar(ProjetoRequest dados) {
+        Projeto projeto = new Projeto();
+        aplicarDados(projeto, dados);
+        return ProjetoResponse.de(projetoRepository.save(projeto));
     }
 
     @Transactional
-    public Projeto atualizar(int id, Projeto dados) {
-        Projeto projeto = buscarPorId(id);
-
-        projeto.setTitulo(dados.getTitulo());
-        projeto.setDescricao(dados.getDescricao());
-        projeto.setTipo(dados.getTipo());
-        projeto.setPapel(dados.getPapel());
-        projeto.setDesafios(dados.getDesafios());
-        projeto.setCapaUrl(dados.getCapaUrl());
-        projeto.setGithubUrl(dados.getGithubUrl());
-        projeto.setVisualizacaoUrl(dados.getVisualizacaoUrl());
-        projeto.setAnoInicio(dados.getAnoInicio());
-        projeto.setAnoFim(dados.getAnoFim());
-        validarPeriodo(projeto);
-
-        projeto.setTags(carregarTags(dados.getTags()));
-
-        vincularImagens(projeto, dados.getImagens());
-
-        return projetoRepository.save(projeto);
+    public ProjetoResponse atualizar(int id, ProjetoRequest dados) {
+        Projeto projeto = buscarEntidade(id);
+        aplicarDados(projeto, dados);
+        // Sem save(): a entidade veio do banco dentro desta transacao, entao o Hibernate
+        // detecta as mudancas e gera o UPDATE sozinho ("dirty checking").
+        // flush() antecipa esse envio ao banco para que as imagens novas ja tenham ID na resposta.
+        projetoRepository.flush();
+        return ProjetoResponse.de(projeto);
     }
 
     @Transactional
     public void deletar(int id) {
-        if (!projetoRepository.existsById(id)) {
-            throw new RecursoNaoEncontradoException("Projeto nao encontrado com o ID: " + id);
-        }
-        projetoRepository.deleteById(id);
+        projetoRepository.delete(buscarEntidade(id));
     }
 
     // --- auxiliares ---
 
-    private void validarPeriodo(Projeto projeto) {
-        if (projeto.getAnoInicio() == null) {
-            throw new IllegalArgumentException("O ano de inicio e obrigatorio");
-        }
-        if (projeto.getAnoFim() != null && projeto.getAnoFim() < projeto.getAnoInicio()) {
-            throw new IllegalArgumentException("O ano de fim nao pode ser anterior ao ano de inicio");
+    private Projeto buscarEntidade(int id) {
+        return projetoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Projeto nao encontrado com o ID: " + id));
+    }
+
+    /** Copia os campos do DTO para a entidade (usado tanto no criar quanto no atualizar). */
+    private void aplicarDados(Projeto projeto, ProjetoRequest dados) {
+        validarPeriodo(dados.anoInicio(), dados.anoFim());
+
+        projeto.setTitulo(dados.titulo());
+        projeto.setDescricao(dados.descricao());
+        projeto.setTipo(dados.tipo());
+        projeto.setPapel(dados.papel());
+        projeto.setDesafios(dados.desafios());
+        projeto.setCapaUrl(dados.capaUrl());
+        projeto.setGithubUrl(dados.githubUrl());
+        projeto.setVisualizacaoUrl(dados.visualizacaoUrl());
+        projeto.setAnoInicio(dados.anoInicio());
+        projeto.setAnoFim(dados.anoFim());
+        projeto.setTags(carregarTags(dados.tagIds()));
+        substituirImagens(projeto, dados.imagens());
+    }
+
+    // Regra que envolve DOIS campos: nao da para expressar com uma anotacao simples no DTO
+    private void validarPeriodo(Integer anoInicio, Integer anoFim) {
+        if (anoFim != null && anoFim < anoInicio) {
+            throw new RegraDeNegocioException("O ano de fim nao pode ser anterior ao ano de inicio");
         }
     }
 
-    /**
-     * O JSON enviado traz as tags apenas com o id (ex.: "tags": [{"id": 1}, {"id": 3}]).
-     * Aqui buscamos as tags reais no banco para associar ao projeto.
-     */
-    private List<Tag> carregarTags(List<Tag> tagsRecebidas) {
-        if (tagsRecebidas == null || tagsRecebidas.isEmpty()) {
+    /** Busca as tags reais no banco a partir dos ids recebidos (ex.: "tagIds": [1, 3]). */
+    private List<Tag> carregarTags(List<Integer> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
             return new ArrayList<>();
         }
-        List<Integer> ids = tagsRecebidas.stream().map(Tag::getId).toList();
-        List<Tag> tags = tagRepository.findAllById(ids);
-        if (tags.size() != ids.size()) {
-            throw new RecursoNaoEncontradoException("Uma ou mais tags informadas nao existem: " + ids);
+        Set<Integer> idsUnicos = new HashSet<>(tagIds); // ignora ids repetidos
+        List<Tag> tags = tagRepository.findAllById(idsUnicos);
+        if (tags.size() != idsUnicos.size()) {
+            throw new RecursoNaoEncontradoException("Uma ou mais tags informadas nao existem: " + idsUnicos);
         }
         return new ArrayList<>(tags);
     }
 
     /**
-     * Imagem e o lado "dono" da relacao: cada uma precisa apontar para o projeto antes de salvar.
-     * A lista do projeto e substituida pelas imagens recebidas; com orphanRemoval,
+     * Imagem e o lado "dono" da relacao: cada uma precisa apontar para o projeto.
+     * A lista e substituida pelas imagens recebidas; com orphanRemoval = true,
      * as que sairem da lista sao apagadas do banco.
+     * Importante: usamos clear()/add() na MESMA lista, nunca setImagens(novaLista),
+     * porque o Hibernate rastreia a colecao original para saber o que remover.
      */
-    private void vincularImagens(Projeto projeto, List<Imagem> imagens) {
-        List<Imagem> novas = (imagens == null) ? new ArrayList<>() : new ArrayList<>(imagens);
+    private void substituirImagens(Projeto projeto, List<ProjetoRequest.ImagemRequest> imagens) {
         projeto.getImagens().clear();
-        for (Imagem imagem : novas) {
+        if (imagens == null) {
+            return;
+        }
+        for (ProjetoRequest.ImagemRequest dados : imagens) {
+            Imagem imagem = new Imagem();
+            imagem.setUrl(dados.url());
+            imagem.setDescricao(dados.descricao());
             imagem.setProjeto(projeto);
             projeto.getImagens().add(imagem);
         }
