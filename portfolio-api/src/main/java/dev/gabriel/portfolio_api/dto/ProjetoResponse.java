@@ -4,7 +4,6 @@ import java.util.List;
 
 import dev.gabriel.portfolio_api.entities.Imagem;
 import dev.gabriel.portfolio_api.entities.Projeto;
-import dev.gabriel.portfolio_api.entities.Tag;
 import dev.gabriel.portfolio_api.entities.TipoProjeto;
 
 /**
@@ -26,12 +25,6 @@ public record ProjetoResponse(
         String periodo,
         List<TagResponse> tags,
         List<ImagemResponse> imagens) {
-
-    public record TagResponse(int id, String nome, String cor) {
-        public static TagResponse de(Tag tag) {
-            return new TagResponse(tag.getId(), tag.getNome(), tag.getCor());
-        }
-    }
 
     public record ImagemResponse(int id, String url, String descricao) {
         public static ImagemResponse de(Imagem imagem) {

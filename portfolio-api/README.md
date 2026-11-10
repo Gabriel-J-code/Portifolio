@@ -4,7 +4,7 @@ API REST que alimenta o portfólio pessoal de **Gabriel de Jesus**: projetos (P&
 
 O site público (Flutter Web) só **lê** os dados. O cadastro é feito por um painel administrativo privado, que usa os endpoints protegidos desta API.
 
-> **Status:** em desenvolvimento. Projetos, Competências e Contatos estão prontos e testados. Veja o [Roadmap](#roadmap).
+> **Status:** em desenvolvimento. Projetos, Tags, Competências e Contatos estão prontos e testados. Veja o [Roadmap](#roadmap).
 
 ## Stack
 
@@ -75,6 +75,9 @@ Abra **http://localhost:8080/swagger-ui.html**.
 | **Projetos** `/api/projetos` | `GET /` (filtros `?tipo=PROFISSIONAL\|ACADEMICO` e `?tagId=`)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Competências** `/api/competencias` | `GET /` (filtro `?categoria=LINGUAGEM\|FERRAMENTA\|TECNICA\|SOFT_SKILL`)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
 | **Contatos** `/api/contatos` | `GET /` (já na ordem de exibição)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
+| **Tags** `/api/tags` | `GET /` (ordem alfabética)<br>`GET /{id}` | `POST /`, `PUT /{id}`, `DELETE /{id}` |
+
+As tags são as etiquetas de tecnologia dos projetos (vinculadas pelo campo `tagIds`). O nome é único **sem diferenciar maiúsculas de minúsculas** (`java` conflita com `Java`), e uma tag em uso por algum projeto não pode ser apagada (`409`): primeiro remova-a dos projetos.
 
 Os contatos aceitam os tipos `LINKEDIN`, `GITHUB`, `EMAIL` e `CURRICULO`, com **no máximo um contato de cada tipo**. O `valor` é validado conforme o tipo: endereço de e-mail para `EMAIL` e link `http(s)` para os demais.
 
@@ -120,7 +123,7 @@ Os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-editor.o
 | `400` | JSON mal formatado, campo inválido ou regra de negócio violada (ex.: `anoFim` antes de `anoInicio`) |
 | `401` | Endpoint protegido sem credenciais ou com credenciais erradas |
 | `404` | Recurso (ou tag referenciada) não encontrado |
-| `409` | Conflito com dados existentes (ex.: um segundo contato do mesmo tipo) |
+| `409` | Conflito com dados existentes (ex.: tag com nome repetido, segundo contato do mesmo tipo, apagar tag em uso) |
 
 ## Autenticação
 
@@ -147,7 +150,7 @@ Os testes são de **integração**. Cada um simula uma requisição HTTP com o *
 - **Segurança:** `GET` público; escrita sem login ou com senha errada → `401`
 - **CRUD completo:** criar (`201` + `Location`), buscar, listar com filtros e ordenação, atualizar, remover (`204`)
 - **Validação:** campos obrigatórios, URLs, cor `#RRGGBB`, e-mail/link conforme o tipo de contato, enums inválidos e JSON quebrado → `400` com a lista de erros
-- **Regras de negócio:** período inválido → `400`; tag inexistente → `404`, sem salvar nada
+- **Regras de negócio:** período inválido → `400`; tag inexistente → `404`, sem salvar nada; duplicados e tag em uso → `409`
 
 O banco é limpo antes de cada teste, então eles são independentes entre si. A primeira classe demora mais (~1 min) porque sobe o container. As demais reaproveitam o mesmo contexto e levam poucos segundos.
 
@@ -183,8 +186,9 @@ src/test/java/dev/gabriel/portfolio_api/
 - [x] Projetos: CRUD, tags, imagens, filtros
 - [x] Competências: CRUD por categoria
 - [x] Contatos: CRUD com ordem de exibição e validação do valor por tipo
+- [x] Tags: CRUD com nome único e proteção contra apagar tag em uso
 - [x] Swagger, tratamento de erros padronizado, testes de integração
-- [ ] Tags e Dados Gerais
+- [ ] Dados Gerais
 - [ ] Login com 2FA por e-mail + JWT (substituindo o HTTP Basic)
 - [ ] CORS para o domínio do front-end
 - [ ] Cache com Redis nas consultas públicas

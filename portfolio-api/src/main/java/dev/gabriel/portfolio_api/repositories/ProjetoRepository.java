@@ -14,4 +14,7 @@ public interface ProjetoRepository extends JpaRepository<Projeto, Integer> {
     List<Projeto> findByTipoOrderByAnoInicioDesc(TipoProjeto tipo);
 
     List<Projeto> findAllByOrderByAnoInicioDesc();
+
+    // Quantos projetos usam a tag? (usado para impedir apagar uma tag em uso)
+    long countByTagsId(int tagId);
 }
