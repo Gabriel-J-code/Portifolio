@@ -1,5 +1,6 @@
 package dev.gabriel.portfolio_api.exceptions;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -8,11 +9,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+
+// Spring Boot 4 usa o Jackson 3, cujo pacote mudou de com.fasterxml.jackson para tools.jackson
+import tools.jackson.databind.exc.InvalidFormatException;
 
 /**
  * Converte excecoes em respostas HTTP padronizadas, para TODOS os controllers.
@@ -52,6 +57,32 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problema = ex.getBody();
         problema.setDetail("Um ou mais campos estao invalidos");
         problema.setProperty("erros", erros);
+        return handleExceptionInternal(ex, problema, headers, status, request);
+    }
+
+    /**
+     * JSON que nem chega a virar o DTO: sintaxe quebrada, ou um valor que nao cabe no tipo
+     * (ex.: "categoria": "FRAMEWORK", que nao existe no enum). O padrao do Spring so diz
+     * "Failed to read request"; aqui explicamos qual campo e, para enums, quais valores valem.
+     */
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(status, "JSON invalido ou mal formatado");
+
+        if (ex.getCause() instanceof InvalidFormatException erro) {
+            String campo = erro.getPath().stream()
+                    .map(ref -> ref.getPropertyName())
+                    .filter(nome -> nome != null)
+                    .reduce((a, b) -> a + "." + b)
+                    .orElse("?");
+            String mensagem = "valor '" + erro.getValue() + "' invalido";
+            if (erro.getTargetType() != null && erro.getTargetType().isEnum()) {
+                mensagem += "; aceitos: " + Arrays.toString(erro.getTargetType().getEnumConstants());
+            }
+            problema.setDetail("Um ou mais campos estao invalidos");
+            problema.setProperty("erros", Map.of(campo, mensagem));
+        }
         return handleExceptionInternal(ex, problema, headers, status, request);
     }
 }
