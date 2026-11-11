@@ -13,14 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.gabriel.portfolio_api.config.AuthProperties;
 import dev.gabriel.portfolio_api.dto.LoginRequest;
 import dev.gabriel.portfolio_api.dto.LoginResponse;
+import dev.gabriel.portfolio_api.dto.TokenResponse;
+import dev.gabriel.portfolio_api.dto.VerificarCodigoRequest;
 import dev.gabriel.portfolio_api.entities.Acesso;
+import dev.gabriel.portfolio_api.exceptions.CodigoInvalidoException;
 import dev.gabriel.portfolio_api.exceptions.CredenciaisInvalidasException;
 import dev.gabriel.portfolio_api.repositories.AcessoRepository;
 
 /**
  * Autenticacao do painel em duas etapas (2FA sempre obrigatorio).
  * Etapa 1 (aqui): e-mail + senha corretos -> gera um codigo de 6 digitos e envia por e-mail.
- * Etapa 2 (proxima fatia): codigo correto e dentro do prazo -> emite o token JWT.
+ * Etapa 2: codigo correto, dentro do prazo e dentro do limite de tentativas -> emite o token JWT.
  */
 @Service
 public class AcessoService {
@@ -29,6 +32,7 @@ public class AcessoService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuthProperties authProperties;
+    private final JwtService jwtService;
     private final Clock clock;
 
     // SecureRandom (e nao Random): gera numeros imprevisiveis, proprios para segredos.
@@ -39,11 +43,12 @@ public class AcessoService {
     private final String hashFalso;
 
     public AcessoService(AcessoRepository acessoRepository, PasswordEncoder passwordEncoder,
-            EmailService emailService, AuthProperties authProperties, Clock clock) {
+            EmailService emailService, AuthProperties authProperties, JwtService jwtService, Clock clock) {
         this.acessoRepository = acessoRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
         this.authProperties = authProperties;
+        this.jwtService = jwtService;
         this.clock = clock;
         this.hashFalso = passwordEncoder.encode("senha-falsa-so-para-gastar-o-mesmo-tempo");
     }
@@ -72,14 +77,51 @@ public class AcessoService {
         String codigo = gerarCodigo();
         Instant expiraEm = Instant.now(clock).plus(authProperties.codigoValidade());
 
-        // Um novo login substitui o codigo anterior (so o ultimo codigo enviado vale)
-        acesso.setTwoFactorCode(passwordEncoder.encode(codigo));
-        acesso.setTwoFactorCodeExpiresAt(expiraEm);
+        // Um novo login substitui o codigo anterior (so o ultimo codigo enviado vale) e zera as tentativas
+        acesso.definirCodigo(passwordEncoder.encode(codigo), expiraEm);
         acessoRepository.saveAndFlush(acesso);
 
         emailService.enviarCodigoDeAcesso(acesso.getEmail(), codigo, authProperties.codigoValidade());
 
         return new LoginResponse("Codigo de acesso enviado por e-mail", mascarar(acesso.getEmail()), expiraEm);
+    }
+
+    /**
+     * Etapa 2 do login: confere o codigo e, se estiver certo, emite o token JWT.
+     *
+     * noRollbackFor: por padrao, uma excecao DESFAZ tudo o que a transacao gravou. Aqui isso seria
+     * um furo de seguranca: o "tentativas + 1" de um codigo errado seria desfeito junto com a excecao,
+     * e o limite de tentativas nunca seria atingido. Com noRollbackFor, o contador e gravado mesmo
+     * quando respondemos 401.
+     */
+    @Transactional(noRollbackFor = CodigoInvalidoException.class)
+    public TokenResponse verificarCodigo(VerificarCodigoRequest dados) {
+        String email = dados.email().toLowerCase(Locale.ROOT);
+        Acesso acesso = acessoRepository.findByEmailIgnoreCase(email)
+                .filter(a -> a.getTwoFactorCode() != null)
+                // Mesma mensagem para "e-mail nao existe" e "nao ha codigo pendente": nao revela o e-mail
+                .orElseThrow(() -> new CodigoInvalidoException(
+                        "Nenhum codigo pendente para este e-mail; faca login novamente"));
+
+        if (!Instant.now(clock).isBefore(acesso.getTwoFactorCodeExpiresAt())) {
+            acesso.limparCodigo();
+            throw new CodigoInvalidoException("Codigo expirado; faca login novamente");
+        }
+
+        if (!passwordEncoder.matches(dados.codigo(), acesso.getTwoFactorCode())) {
+            int tentativas = acesso.getTwoFactorTentativas() + 1;
+            int restantes = authProperties.maxTentativasCodigo() - tentativas;
+            if (restantes <= 0) {
+                acesso.limparCodigo(); // sem codigo pendente, nem o codigo certo funciona mais
+                throw new CodigoInvalidoException("Codigo incorreto; tentativas esgotadas, faca login novamente");
+            }
+            acesso.setTwoFactorTentativas(tentativas);
+            throw new CodigoInvalidoException("Codigo incorreto; restam " + restantes + " tentativa(s)");
+        }
+
+        // Codigo certo: ele e "queimado" (uso unico) antes de emitir o token
+        acesso.limparCodigo();
+        return jwtService.gerarToken(acesso.getEmail());
     }
 
     // --- auxiliares ---

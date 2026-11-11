@@ -44,8 +44,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
-    @ExceptionHandler(CredenciaisInvalidasException.class)
-    public ProblemDetail tratarCredenciaisInvalidas(CredenciaisInvalidasException ex) {
+    @ExceptionHandler({ CredenciaisInvalidasException.class, CodigoInvalidoException.class })
+    public ProblemDetail tratarFalhaDeLogin(RuntimeException ex) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 

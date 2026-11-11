@@ -35,6 +35,10 @@ public class Acesso {
     @Column(name = "two_factor_expires_at")
     private Instant twoFactorCodeExpiresAt;
 
+    // Quantas vezes o codigo atual foi digitado errado (zera a cada novo login)
+    @Column(name = "two_factor_tentativas", nullable = false)
+    private int twoFactorTentativas = 0;
+
     public Acesso() {
     }
 
@@ -78,5 +82,27 @@ public class Acesso {
 
     public void setTwoFactorCodeExpiresAt(Instant twoFactorCodeExpiresAt) {
         this.twoFactorCodeExpiresAt = twoFactorCodeExpiresAt;
+    }
+
+    public int getTwoFactorTentativas() {
+        return twoFactorTentativas;
+    }
+
+    public void setTwoFactorTentativas(int twoFactorTentativas) {
+        this.twoFactorTentativas = twoFactorTentativas;
+    }
+
+    /** Novo codigo pendente: guarda o hash, o prazo e zera as tentativas. */
+    public void definirCodigo(String hashDoCodigo, Instant expiraEm) {
+        this.twoFactorCode = hashDoCodigo;
+        this.twoFactorCodeExpiresAt = expiraEm;
+        this.twoFactorTentativas = 0;
+    }
+
+    /** Invalida o codigo pendente (usado, expirado ou com tentativas esgotadas). */
+    public void limparCodigo() {
+        this.twoFactorCode = null;
+        this.twoFactorCodeExpiresAt = null;
+        this.twoFactorTentativas = 0;
     }
 }

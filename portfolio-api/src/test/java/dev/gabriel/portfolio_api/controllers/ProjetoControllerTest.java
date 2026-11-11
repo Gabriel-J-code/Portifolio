@@ -4,7 +4,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -100,10 +99,10 @@ class ProjetoControllerTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("POST com senha errada -> 401")
-    void criarComSenhaErrada() throws Exception {
+    @DisplayName("POST com token invalido -> 401")
+    void criarComTokenInvalido() throws Exception {
         mockMvc.perform(post(URL)
-                        .with(httpBasic(ADMIN_USER, "errada"))
+                        .with(comToken("isto.nao.e-um-token"))
                         .contentType(MediaType.APPLICATION_JSON).content(projetoValido()))
                 .andExpect(status().isUnauthorized());
     }

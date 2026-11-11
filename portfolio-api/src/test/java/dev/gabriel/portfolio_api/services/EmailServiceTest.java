@@ -21,7 +21,8 @@ class EmailServiceTest {
 
     private final JavaMailSender mailSender = mock(JavaMailSender.class);
     private final AuthProperties props = new AuthProperties(
-            "gabriel@exemplo.com", "senha", Duration.ofMinutes(10), "nao-responda@portfolio.local");
+            "gabriel@exemplo.com", "senha", Duration.ofMinutes(10), "nao-responda@portfolio.local",
+            5, "segredo-irrelevante-aqui", Duration.ofHours(2));
     private final EmailService emailService = new EmailService(mailSender, props);
 
     @Test
