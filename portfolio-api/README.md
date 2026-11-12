@@ -38,6 +38,7 @@ cp .env.example .env
 | `ADMIN_PASSWORD` | Senha da conta do painel (veja [Autenticação](#autenticação)). |
 | `JWT_SECRET` | Chave que assina os tokens de acesso: 32 bytes aleatórios em Base64. O `.env.example` traz o comando para gerar. **Quem tiver essa chave consegue forjar tokens.** |
 | `ADMIN_EMAIL` | E-mail da conta do painel e destino do código de acesso. Em desenvolvimento, qualquer endereço serve: o Mailpit captura tudo. |
+| `CORS_ORIGINS` | *(Opcional)* Sites que podem chamar a API pelo navegador, separados por vírgula (ex.: `https://seu-usuario.github.io`). Sem ela, vale o padrão de desenvolvimento: Flutter Web em `localhost`, qualquer porta. Veja [CORS](#cors). |
 
 A conta do painel é criada automaticamente na **primeira** inicialização, se a tabela `acessos` estiver vazia. Mudar o `.env` depois **não** altera uma conta já existente.
 
@@ -166,7 +167,16 @@ Medidas de segurança aplicadas:
 - o código não fica salvo se o e-mail não puder ser enviado (`503`);
 - token assinado com HS256 (chave de 256 bits), conferido a cada requisição (assinatura, expiração e emissor) pelo filtro padrão do Spring Security (OAuth2 Resource Server).
 
-Limitações conhecidas: não há **refresh token** (depois de 2 horas, faz-se login de novo) nem **revogação** de token. Um token vazado vale até expirar; em caso de emergência, trocar o `JWT_SECRET` invalida todos os tokens de uma vez. Também não há limite de tentativas de **senha** na etapa 1 (*rate limiting*), que está no roadmap.
+Limitações conhecidas: não há **refresh token** (depois de 2 horas, faz-se login de novo) nem **revogação** de token. Um token vazado vale até expirar; em caso de emergência, trocar o `JWT_SECRET` invalida todos os tokens de uma vez. Também não há limite de tentativas de **senha** na etapa 1 (*rate limiting*): com o 2FA, descobrir a senha não basta para entrar, e o BCrypt já torna cada tentativa lenta.
+
+### CORS
+
+O front-end (Flutter Web) fica em outro domínio, e o navegador só entrega a ele as respostas da API se ela autorizar aquela **origem**. As origens permitidas vêm de `CORS_ORIGINS` (padrão: `http://localhost:[*]` e `http://127.0.0.1:[*]`, em que `[*]` significa qualquer porta, porque o Flutter usa uma porta aleatória em desenvolvimento). Em produção, use só o domínio real do front.
+
+- Métodos `GET`, `POST`, `PUT` e `DELETE`; cabeçalhos `Authorization` e `Content-Type`; o `Location` do `201` fica visível para o front.
+- Sem cookies (`allowCredentials=false`): o token vai no cabeçalho.
+- Origem não permitida → `403`.
+- O CORS **não** é proteção da API: `curl` e Postman o ignoram. Ele protege o **usuário**, impedindo que um site qualquer use o navegador dele para chamar a API. Quem protege a escrita continua sendo o token.
 
 ## Como testar
 
@@ -179,7 +189,7 @@ Limitações conhecidas: não há **refresh token** (depois de 2 horas, faz-se l
 
 Os testes são de **integração**. Cada um simula uma requisição HTTP com o **MockMvc**, que passa pela segurança, pela validação, pelo controller, pelo service e pelo banco real, e confere status, cabeçalhos e JSON da resposta. Eles cobrem:
 
-- **Segurança:** `GET` público; escrita sem login ou com senha errada → `401`
+- **Segurança:** `GET` público; escrita sem token ou com token inválido, expirado ou adulterado → `401`; login em duas etapas; CORS (preflight e origens permitidas/negadas)
 - **CRUD completo:** criar (`201` + `Location`), buscar, listar com filtros e ordenação, atualizar, remover (`204`)
 - **Validação:** campos obrigatórios, URLs, cor `#RRGGBB`, e-mail/link conforme o tipo de contato, enums inválidos e JSON quebrado → `400` com a lista de erros
 - **Regras de negócio:** período inválido → `400`; tag inexistente → `404`, sem salvar nada; duplicados e tag em uso → `409`
@@ -196,7 +206,7 @@ Para rodar só uma classe:
 
 ```
 src/main/java/dev/gabriel/portfolio_api/
-├── config/         # Segurança (SecurityConfig) e Swagger (OpenApiConfig)
+├── config/         # Segurança (SecurityConfig, JWT, CORS), propriedades tipadas e Swagger
 ├── controllers/    # Endpoints REST: traduzem HTTP <-> chamadas ao service
 ├── dto/            # Contratos de entrada (Request, com validação) e saída (Response)
 ├── entities/       # Mapeamento JPA das tabelas
@@ -239,9 +249,8 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 - [x] Dados Gerais: registro único (GET + PUT)
 - [x] Swagger, tratamento de erros padronizado, testes de integração
 - [x] Login em duas etapas: senha + código por e-mail (Mailpit em desenvolvimento) → token JWT
-- [ ] Limite de tentativas de senha no login (*rate limiting*)
 - [ ] Upload de imagens pelo painel (Google Cloud Storage), quando o painel existir
-- [ ] CORS para o domínio do front-end
+- [x] CORS para o front-end (origens configuráveis por ambiente)
 - [ ] Cache com Redis nas consultas públicas
 - [ ] Eventos assíncronos com RabbitMQ
 - [ ] Migrações de banco (Flyway) no lugar do `ddl-auto`

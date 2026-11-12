@@ -28,6 +28,8 @@ import dev.gabriel.portfolio_api.services.JwtService;
         "ADMIN_EMAIL=" + IntegracaoTest.ADMIN_EMAIL,
         // Base64 de "chave-de-teste-com-32-bytes-ok!!" (32 bytes, o minimo para HS256)
         "JWT_SECRET=Y2hhdmUtZGUtdGVzdGUtY29tLTMyLWJ5dGVzLW9rISE=",
+        // Origens do CORS: o padrao de desenvolvimento + um dominio "de producao" ficticio
+        "CORS_ORIGINS=http://localhost:[*]," + IntegracaoTest.ORIGEM_PRODUCAO,
         "spring.jpa.show-sql=false",
         // Enquanto o container inicializa, o driver loga dezenas de "Prelogin error" (tentativas de conexao).
         // Sao esperados e inofensivos; so poluem a saida.
@@ -39,6 +41,7 @@ public abstract class IntegracaoTest {
 
     protected static final String ADMIN_SENHA = "senha-de-teste";
     protected static final String ADMIN_EMAIL = "gabriel@exemplo.com";
+    protected static final String ORIGEM_PRODUCAO = "https://portfolio.exemplo.dev";
 
     @Autowired
     protected MockMvc mockMvc;
