@@ -67,7 +67,7 @@ docker compose down -v   # para o banco e APAGA os dados
 .\mvnw spring-boot:run       # Windows (PowerShell)
 ```
 
-A API sobe em `http://localhost:8080`. As tabelas são criadas e atualizadas automaticamente a partir das entidades (`ddl-auto=update`).
+A API sobe em `http://localhost:8080`. Na inicialização, o **Flyway** cria ou atualiza as tabelas aplicando as migrações pendentes (veja [Banco de dados e migrações](#banco-de-dados-e-migrações)).
 
 ### 4. Explore pelo Swagger
 
@@ -224,11 +224,32 @@ src/main/java/dev/gabriel/portfolio_api/
 ├── services/       # Regras de negócio e transações
 └── validacao/      # Anotações de validação próprias (regras entre campos)
 
+src/main/resources/
+├── application.properties
+└── db/migration/   # Migrações do Flyway (V1__esquema_inicial.sql, ...)
+
 src/test/java/dev/gabriel/portfolio_api/
 ├── IntegracaoTest.java        # Base dos testes: contexto + MockMvc + container
 ├── TestcontainersConfig.java  # SQL Server descartável para os testes
-└── controllers/               # Um teste de integração por recurso
+├── controllers/               # Um teste de integração por recurso (+ segurança JWT e CORS)
+├── entities/                  # Testes unitários de regras das entidades
+└── services/                  # Testes unitários de services
 ```
+
+## Banco de dados e migrações
+
+O esquema do banco é definido por scripts SQL versionados em `src/main/resources/db/migration`, aplicados pelo **Flyway** ao subir a API. O Flyway registra na tabela `flyway_schema_history` quais versões já rodaram e aplica só as novas, então todo ambiente (desenvolvimento, testes e produção) chega exatamente ao mesmo esquema.
+
+O Hibernate **não cria nem altera tabelas** (`ddl-auto=validate`): ele só confere, na inicialização, se as entidades batem com o banco. Se faltar uma coluna, a API não sobe, e o erro aparece logo, não no meio de uma requisição.
+
+**Para mudar o banco** (nova coluna, tabela, índice...):
+1. Crie um arquivo novo com o próximo número, por exemplo `V2__adiciona_coluna_x.sql` (dois sublinhados depois da versão).
+2. Altere a entidade correspondente.
+3. Rode os testes: o Testcontainers aplica todas as migrações num banco vazio e o Hibernate valida o resultado.
+
+> **Nunca edite uma migração que já foi aplicada.** O Flyway guarda o checksum de cada arquivo e recusa subir se ele mudar. Correções viram uma migração nova.
+
+Para recomeçar o banco de desenvolvimento do zero: `docker compose down -v` e `docker compose up -d`. Na próxima inicialização, o Flyway recria tudo e o seed recria a conta do painel.
 
 **Fluxo de uma requisição:** `Controller` (HTTP + `@Valid`) → `Service` (regras + `@Transactional`) → `Repository` (JPA) → SQL Server. As entidades nunca saem do service: a API recebe e devolve DTOs.
 
@@ -246,7 +267,7 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 | **2FA sempre obrigatório** | Há uma única conta. Um caminho único de login é mais simples de testar e não deixa a opção de, por engano, proteger o painel só com a senha. |
 | **JWT validado pelo OAuth2 Resource Server do Spring, não por um filtro próprio** | O filtro padrão já confere assinatura, expiração e emissor e é amplamente testado. Filtros de autenticação escritos à mão são uma fonte comum de falhas de segurança. |
 | **Sem refresh token nem revogação** | Um único administrador, com token de 2 horas: refazer o login é aceitável. Trocar o `JWT_SECRET` serve como "botão de emergência". |
-| **`ddl-auto=update` em desenvolvimento** | Agilidade enquanto o modelo muda. Ele não altera colunas existentes, então antes do deploy será substituído por migrações versionadas (Flyway). |
+| **Migrações com Flyway; Hibernate só valida** | O `ddl-auto=update` não altera colunas existentes e deixou o banco de desenvolvimento diferente do código (colunas obrigatórias aceitando `NULL`, `projeto_tag` sem chave primária). Com scripts versionados, o esquema é revisável no Git e idêntico em todos os ambientes. |
 | **Testes contra um SQL Server real (Testcontainers), não H2** | Um banco em memória diferente esconderia comportamentos do SQL Server, como `NVARCHAR(MAX)`, comparação sem diferenciar maiúsculas e as constraints. |
 
 ## Roadmap
@@ -262,5 +283,5 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 - [x] CORS para o front-end (origens configuráveis por ambiente)
 - [ ] Cache com Redis nas consultas públicas
 - [ ] Eventos assíncronos com RabbitMQ
-- [ ] Migrações de banco (Flyway) no lugar do `ddl-auto`
+- [x] Migrações de banco (Flyway) no lugar do `ddl-auto`
 - [ ] Dockerfile da API e deploy no GCP Cloud Run
