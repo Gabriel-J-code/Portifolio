@@ -24,13 +24,19 @@ flowchart LR
 - O conteúdo é cadastrado por um **painel administrativo** privado. O login tem duas etapas: senha + código enviado por e-mail, que devolve um token JWT.
 - As imagens ficam hospedadas fora da API; o banco guarda só as URLs.
 
+### Modelo de dados
+
+![Modelo relacional do banco](doc/modelo-relacional.png)
+
+Diagrama gerado pelo DBeaver a partir do banco real. `projeto_tag` liga projetos e tags (N:N); `dados_gerais` tem uma única linha (`id = 1`); `acessos` guarda a conta do painel.
+
 ## Estrutura do repositório
 
 | Pasta | Conteúdo | Documentação |
 |---|---|---|
 | [`portfolio-api/`](portfolio-api/) | API REST em Java 17 + Spring Boot 4 | [README da API](portfolio-api/README.md): como rodar, testar, endpoints e decisões de projeto |
 | [`web/`](web/) | Site em Flutter Web (ainda o projeto inicial) | Em breve |
-| [`doc/`](doc/) | Diagramas (modelo relacional, em atualização) | — |
+| [`doc/`](doc/) | Diagramas | [Modelo relacional](doc/modelo-relacional.png) |
 
 ## Tecnologias
 
