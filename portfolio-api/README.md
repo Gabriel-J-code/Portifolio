@@ -10,11 +10,12 @@ O site público (Flutter Web) só **lê** os dados. O cadastro é feito por um p
 
 | Camada | Tecnologia |
 |---|---|
-| Linguagem / framework | Java 17, Spring Boot 4.1 (Web MVC, Data JPA, Security, Validation) |
+| Linguagem / framework | Java 17, Spring Boot 4.1 (Web MVC, Data JPA, Security, Validation, Mail) |
+| Autenticação | Senha (BCrypt) + código por e-mail → JWT (OAuth2 Resource Server) |
 | Banco de dados | SQL Server 2022 (via Docker) |
 | Documentação | OpenAPI 3 / Swagger UI (springdoc) |
 | Testes | JUnit 5, MockMvc, Testcontainers |
-| Planejado | JWT + 2FA por e-mail, Redis (cache), RabbitMQ (eventos), deploy no GCP Cloud Run |
+| Planejado | Redis (cache), RabbitMQ (eventos), deploy no GCP Cloud Run |
 
 ## Pré-requisitos
 
