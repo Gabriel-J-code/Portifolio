@@ -195,7 +195,7 @@ class ProjetoControllerTest extends IntegracaoTest {
                                 """.formatted(tagJava)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.titulo").value("BeesCaatinga (editado)"))
-                .andExpect(jsonPath("$.periodo").value("2023")) // sem anoFim -> so um ano
+                .andExpect(jsonPath("$.periodo").value("2023 – atual")) // sem anoFim -> em andamento
                 .andExpect(jsonPath("$.tags", hasSize(1)))
                 .andExpect(jsonPath("$.tags[0].nome").value("Java"))
                 .andExpect(jsonPath("$.imagens", hasSize(2)))

@@ -54,7 +54,7 @@ public class Projeto {
 	@Column(name = "ano_inicio", nullable = false)
 	private Integer anoInicio;
 
-	@Column(name = "ano_fim") // opcional: vazio ou igual ao inicio = exibe apenas um ano
+	@Column(name = "ano_fim") // opcional: vazio = em andamento ("2023 – atual"); igual ao inicio = exibe apenas um ano
 	private Integer anoFim;
 
 	@ManyToMany
@@ -81,13 +81,17 @@ public class Projeto {
 	/**
 	 * Texto pronto para o front exibir. Nao vira coluna no banco
 	 * (o JPA so mapeia atributos), mas o JSON da API inclui "periodo".
-	 * Ex.: 2024 -> "2024" | 2022 a 2024 -> "2022 – 2024"
+	 * Ex.: sem anoFim -> "2023 – atual" (em andamento) | 2024 a 2024 -> "2024" | 2022 a 2024 -> "2022 – 2024"
+	 * So o ano (sem mes), de proposito: exibicao padronizada nos cards.
 	 */
 	public String getPeriodo() {
 		if (anoInicio == null) {
 			return null;
 		}
-		if (anoFim == null || anoFim.equals(anoInicio)) {
+		if (anoFim == null) {
+			return anoInicio + " – atual";
+		}
+		if (anoFim.equals(anoInicio)) {
 			return String.valueOf(anoInicio);
 		}
 		return anoInicio + " – " + anoFim;

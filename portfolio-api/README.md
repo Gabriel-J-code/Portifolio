@@ -118,6 +118,14 @@ curl -X POST http://localhost:8080/api/projetos \
 
 Resposta: `201 Created`, com o cabeçalho `Location` apontando para o novo projeto e o JSON completo, incluindo o campo calculado `"periodo": "2023 – 2024"`.
 
+O `periodo` é montado pela API para o front exibir sem lógica própria, só com o ano (sem mês, para manter os cards padronizados):
+
+| `anoInicio` | `anoFim` | `periodo` |
+|---|---|---|
+| 2023 | *(vazio)* | `2023 – atual` (em andamento) |
+| 2024 | 2024 | `2024` |
+| 2022 | 2024 | `2022 – 2024` |
+
 ### Formato de erros
 
 Os erros seguem o padrão **ProblemDetail** ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)). Erros de validação trazem a lista de campos inválidos:
