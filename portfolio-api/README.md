@@ -236,6 +236,8 @@ src/test/java/dev/gabriel/portfolio_api/
 └── services/                  # Testes unitários de services
 ```
 
+**Fluxo de uma requisição:** `Controller` (HTTP + `@Valid`) → `Service` (regras + `@Transactional`) → `Repository` (JPA) → SQL Server. As entidades nunca saem do service: a API recebe e devolve DTOs.
+
 ## Banco de dados e migrações
 
 O esquema do banco é definido por scripts SQL versionados em `src/main/resources/db/migration`, aplicados pelo **Flyway** ao subir a API. O Flyway registra na tabela `flyway_schema_history` quais versões já rodaram e aplica só as novas, então todo ambiente (desenvolvimento, testes e produção) chega exatamente ao mesmo esquema.
@@ -251,7 +253,30 @@ O Hibernate **não cria nem altera tabelas** (`ddl-auto=validate`): ele só conf
 
 Para recomeçar o banco de desenvolvimento do zero: `docker compose down -v` e `docker compose up -d`. Na próxima inicialização, o Flyway recria tudo e o seed recria a conta do painel.
 
-**Fluxo de uma requisição:** `Controller` (HTTP + `@Valid`) → `Service` (regras + `@Transactional`) → `Repository` (JPA) → SQL Server. As entidades nunca saem do service: a API recebe e devolve DTOs.
+## Produção
+
+Em produção, a API roda com o perfil **`prod`** (`SPRING_PROFILES_ACTIVE=prod`), definido em `application-prod.properties`. Ele muda o seguinte:
+
+- **Swagger desligado:** `/swagger-ui.html` e `/v3/api-docs` respondem `404`, e o mapa das rotas do painel não fica público.
+- **Sem valores padrão de desenvolvimento:** nada de `localhost`, Mailpit ou `trustServerCertificate`. Se faltar uma variável obrigatória, a API **não sobe**. A exceção é o SMTP: sem ele, a API sobe, mas o login responde `503`.
+- **E-mail real:** SMTP com login e STARTTLS (porta 587), com timeouts para o login não travar se o servidor de e-mail não responder.
+- **Atrás de proxy HTTPS** (`server.forward-headers-strategy=framework`): o Cloud Run recebe em HTTPS e repassa para a API em HTTP. Com isso, a API lê os cabeçalhos `X-Forwarded-*` e gera links corretos, como o `Location` do `201` com `https://` e o domínio público.
+- **Sem SQL no log.**
+
+Variáveis de ambiente do perfil `prod`, além de `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `JWT_SECRET`:
+
+| Variável | Exemplo |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_URL` | `jdbc:sqlserver://<host>:1433;databaseName=portfolio;encrypt=true` |
+| `DB_USER` / `DB_PASSWORD` | Usuário e senha do banco de produção |
+| `MAIL_HOST` / `MAIL_PORT` | `smtp.gmail.com` / `587` (porta opcional; padrão `587`) |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | Conta SMTP (no Gmail, uma **senha de app**, não a senha da conta) |
+| `MAIL_FROM` | Remetente; em geral, o próprio e-mail da conta SMTP |
+| `CORS_ORIGINS` | Domínio do front, ex.: `https://seu-usuario.github.io` |
+| `PORT` | Definida automaticamente pelo Cloud Run (padrão `8080`) |
+
+Em produção, os segredos não ficam em arquivo `.env`. Eles vêm das variáveis de ambiente do serviço, de preferência por um gerenciador de segredos, como o Secret Manager do GCP.
 
 ## Decisões de projeto
 
@@ -284,4 +309,5 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 - [ ] Cache com Redis nas consultas públicas
 - [ ] Eventos assíncronos com RabbitMQ
 - [x] Migrações de banco (Flyway) no lugar do `ddl-auto`
+- [x] Perfil de produção (Swagger desligado, SMTP real, proxy HTTPS, sem padrões de desenvolvimento)
 - [ ] Dockerfile da API e deploy no GCP Cloud Run
