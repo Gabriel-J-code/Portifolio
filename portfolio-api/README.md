@@ -278,6 +278,32 @@ Variáveis de ambiente do perfil `prod`, além de `ADMIN_EMAIL`, `ADMIN_PASSWORD
 
 Em produção, os segredos não ficam em arquivo `.env`. Eles vêm das variáveis de ambiente do serviço, de preferência por um gerenciador de segredos, como o Secret Manager do GCP.
 
+### Imagem Docker
+
+O `Dockerfile` gera a imagem que vai para produção. Ele tem dois estágios:
+
+1. **build:** JDK 17 + Maven Wrapper compilam o projeto e geram o `.jar`. O `pom.xml` é copiado antes do código, então o download das dependências fica em cache e só é refeito quando o `pom.xml` muda.
+2. **runtime:** só o JRE 17 e a aplicação. O `.jar` é extraído em **camadas** (dependências, loader do Spring e código); ao mudar só o código, apenas a camada da aplicação (poucos KB) muda.
+
+A imagem já vem com `SPRING_PROFILES_ACTIVE=prod`, roda com um usuário **sem privilégios de root** e usa `-XX:MaxRAMPercentage=75` (por padrão a JVM usaria só 25% da memória do container). O `.dockerignore` impede que o `.env` entre na imagem.
+
+> Os **testes não rodam no `docker build`**: eles precisam do Docker (Testcontainers), que não existe dentro do build. Rode `.\mvnw test` antes de gerar a imagem (no futuro, o GitHub Actions faz isso).
+
+**Testar a imagem localmente**, com o banco e o Mailpit do `docker compose up -d`. Dentro do container, `localhost` é o próprio container; o computador é `host.docker.internal`:
+
+```powershell
+docker build -t portfolio-api .
+
+docker run --rm -p 8080:8080 --env-file .env `
+  -e DB_URL="jdbc:sqlserver://host.docker.internal:1433;databaseName=portfolio;encrypt=true;trustServerCertificate=true" `
+  -e DB_USER=sa `
+  -e MAIL_HOST=host.docker.internal -e MAIL_PORT=1025 -e MAIL_USERNAME=teste -e MAIL_PASSWORD=teste `
+  -e MAIL_FROM=teste@exemplo.com -e CORS_ORIGINS=https://exemplo.github.io `
+  portfolio-api
+```
+
+Com o perfil `prod`, o Swagger responde `404` e o login responde `503`, porque o Mailpit não tem STARTTLS. Para testar o login pela imagem, use o perfil de desenvolvimento: `-e SPRING_PROFILES_ACTIVE=default` (aí só `DB_URL` e `MAIL_HOST` precisam ser passados).
+
 ## Decisões de projeto
 
 Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora tem um caminho de evolução definido.
@@ -310,4 +336,5 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 - [ ] Eventos assíncronos com RabbitMQ
 - [x] Migrações de banco (Flyway) no lugar do `ddl-auto`
 - [x] Perfil de produção (Swagger desligado, SMTP real, proxy HTTPS, sem padrões de desenvolvimento)
-- [ ] Dockerfile da API e deploy no GCP Cloud Run
+- [x] Dockerfile da API (multi-stage, camadas, usuário sem root)
+- [ ] Deploy no GCP Cloud Run

@@ -1,0 +1,17 @@
+# O que NAO vai para o contexto do "docker build".
+# Mais importante: o .env (segredos) nunca pode entrar na imagem.
+.env
+.env.*
+
+# Gerado pelo build (a imagem compila do zero) e arquivos que a imagem nao usa
+target/
+.git/
+.github/
+.vscode/
+.idea/
+*.iml
+HELP.md
+README.md
+docker-compose.yml
+Dockerfile
+.dockerignore

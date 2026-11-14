@@ -69,7 +69,8 @@ Pré-requisitos: JDK 17+ e Docker Desktop.
 - [ ] Layout do site no Figma
 - [ ] Site em Flutter Web: página única com as seções Sobre, Competências, Projetos e Contato
 - [ ] Painel administrativo para cadastrar o conteúdo
-- [ ] Preparação para produção: migrações com Flyway, Dockerfile, cache com Redis
+- [x] API pronta para produção: migrações com Flyway, perfil de produção e imagem Docker
+- [ ] Cache com Redis nas consultas públicas
 - [ ] Deploy: API no Google Cloud Run, site no GitHub Pages ou Cloudflare Pages
 
 ## Autor
