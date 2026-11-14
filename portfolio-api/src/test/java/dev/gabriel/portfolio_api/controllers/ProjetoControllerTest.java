@@ -27,7 +27,7 @@ import dev.gabriel.portfolio_api.repositories.TagRepository;
 
 /**
  * Testes de integracao de /api/projetos: requisicao HTTP simulada -> seguranca -> controller
- * -> service -> SQL Server (container) -> resposta JSON.
+ * -> service -> PostgreSQL (container) -> resposta JSON.
  */
 class ProjetoControllerTest extends IntegracaoTest {
 
@@ -117,7 +117,7 @@ class ProjetoControllerTest extends IntegracaoTest {
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location", containsString(URL + "/")))
                 .andExpect(jsonPath("$.titulo").value("BeesCaatinga"))
-                .andExpect(jsonPath("$.descricao").value("Gestão de apiários da Caatinga")) // acentos/NVARCHAR
+                .andExpect(jsonPath("$.descricao").value("Gestão de apiários da Caatinga")) // acentos (UTF-8)
                 .andExpect(jsonPath("$.periodo").value("2023 – 2024"))
                 .andExpect(jsonPath("$.tags", hasSize(2)))
                 .andExpect(jsonPath("$.imagens", hasSize(1)))

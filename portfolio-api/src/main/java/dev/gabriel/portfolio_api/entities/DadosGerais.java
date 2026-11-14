@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
  *
  * Por que o id e fixo e nao IDENTITY (autoincremento)?
  * - Com IDENTITY, apagar e recriar o registro geraria ID 2, 3...
- * - O SQL Server pode "pular" valores de IDENTITY apos um reinicio.
+ * - O banco pode "pular" valores de IDENTITY (ex.: insercoes que falham consomem o numero).
  * Com o id sempre = 1, atribuido pelo codigo, e a check constraint abaixo,
  * o proprio banco recusa uma segunda linha.
  */
@@ -25,7 +25,7 @@ public class DadosGerais {
     @Id // sem @GeneratedValue: o valor e sempre ID_UNICO (e nao ha setter)
     private int id = ID_UNICO;
 
-    @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String texto; // texto de apresentacao ("Ola, meu nome e Gabriel...")
 
     private String disponibilidade; // texto do selo, ex.: "Disponivel para contratacao"; vazio = sem selo

@@ -14,7 +14,7 @@ O site público (Flutter Web) só **lê** os dados. O cadastro é feito por um p
 |---|---|
 | Linguagem / framework | Java 17, Spring Boot 4.1 (Web MVC, Data JPA, Security, Validation, Mail) |
 | Autenticação | Senha (BCrypt) + código por e-mail → JWT (OAuth2 Resource Server) |
-| Banco de dados | SQL Server 2022 (via Docker) |
+| Banco de dados | PostgreSQL 17 (via Docker) |
 | Documentação | OpenAPI 3 / Swagger UI (springdoc) |
 | Testes | JUnit 5, MockMvc, Testcontainers |
 | Planejado | Redis (cache), RabbitMQ (eventos), deploy no GCP Cloud Run |
@@ -37,7 +37,7 @@ cp .env.example .env
 
 | Variável | Para quê |
 |---|---|
-| `DB_PASSWORD` | Senha do usuário `sa` do SQL Server. Exige 8+ caracteres com maiúscula, minúscula, número e símbolo. Evite `$`. |
+| `DB_PASSWORD` | Senha do PostgreSQL do Docker Compose (usuário e banco `portfolio`). Evite `$`. O Postgres só lê essa senha quando o volume é criado; para trocá-la depois, recrie o banco com `docker compose down -v`. |
 | `ADMIN_PASSWORD` | Senha da conta do painel (veja [Autenticação](#autenticação)). |
 | `JWT_SECRET` | Chave que assina os tokens de acesso: 32 bytes aleatórios em Base64. O `.env.example` traz o comando para gerar. **Quem tiver essa chave consegue forjar tokens.** |
 | `ADMIN_EMAIL` | E-mail da conta do painel e destino do código de acesso. Em desenvolvimento, qualquer endereço serve: o Mailpit captura tudo. |
@@ -54,7 +54,7 @@ docker compose up -d
 ```
 
 Esse comando sobe:
-- o **SQL Server** na porta `1433`, criando o banco `portfolio` na primeira execução. Os dados ficam num volume Docker e sobrevivem quando o container é desligado;
+- o **PostgreSQL** na porta `5433` do seu computador (a `5432` costuma estar ocupada por um Postgres instalado no sistema), com o banco e o usuário `portfolio` criados na primeira execução. Os dados ficam num volume Docker e sobrevivem quando o container é desligado;
 - o **Mailpit**, um servidor de e-mail falso para desenvolvimento. Ele recebe os e-mails que a API envia (como o código de login) sem entregá-los a ninguém, e os mostra em **http://localhost:8025**.
 
 ```bash
@@ -196,7 +196,7 @@ O front-end (Flutter Web) fica em outro domínio, e o navegador só entrega a el
 .\mvnw test       # Windows (PowerShell)
 ```
 
-> **O Docker Desktop precisa estar aberto.** Os testes não usam o banco de desenvolvimento: o **Testcontainers** sobe um SQL Server descartável só para eles e o remove no final. Por isso não é preciso ter `.env`, banco ou API rodando, e os seus dados locais não são afetados.
+> **O Docker Desktop precisa estar aberto.** Os testes não usam o banco de desenvolvimento: o **Testcontainers** sobe um PostgreSQL descartável só para eles e o remove no final. Por isso não é preciso ter `.env`, banco ou API rodando, e os seus dados locais não são afetados.
 
 Os testes são de **integração**. Cada um simula uma requisição HTTP com o **MockMvc**, que passa pela segurança, pela validação, pelo controller, pelo service e pelo banco real, e confere status, cabeçalhos e JSON da resposta. Eles cobrem:
 
@@ -217,7 +217,7 @@ Para rodar só uma classe:
 
 O workflow [`.github/workflows/api-ci.yml`](../.github/workflows/api-ci.yml) roda `./mvnw verify` (compila, roda todos os testes e gera o `.jar`) a cada push na `main` e a cada pull request que mexa em `portfolio-api/`. Também dá para disparar à mão pela aba **Actions**.
 
-- O runner `ubuntu-latest` já tem Docker, então o Testcontainers sobe o SQL Server igual na sua máquina. **Nenhum segredo é necessário**: as credenciais de teste ficam no código de teste.
+- O runner `ubuntu-latest` já tem Docker, então o Testcontainers sobe o PostgreSQL igual na sua máquina. **Nenhum segredo é necessário**: as credenciais de teste ficam no código de teste.
 - As dependências do Maven ficam em cache entre as execuções (`setup-java` com `cache: maven`), e o cache só é refeito quando o `pom.xml` muda.
 - Se um teste falhar, os relatórios do Surefire ficam disponíveis para download na execução (artefato `relatorios-surefire`, por 7 dias).
 - Um novo push no mesmo branch cancela a execução anterior.
@@ -241,13 +241,13 @@ src/main/resources/
 
 src/test/java/dev/gabriel/portfolio_api/
 ├── IntegracaoTest.java        # Base dos testes: contexto + MockMvc + container
-├── TestcontainersConfig.java  # SQL Server descartável para os testes
+├── TestcontainersConfig.java  # PostgreSQL descartável para os testes
 ├── controllers/               # Um teste de integração por recurso (+ segurança JWT e CORS)
 ├── entities/                  # Testes unitários de regras das entidades
 └── services/                  # Testes unitários de services
 ```
 
-**Fluxo de uma requisição:** `Controller` (HTTP + `@Valid`) → `Service` (regras + `@Transactional`) → `Repository` (JPA) → SQL Server. As entidades nunca saem do service: a API recebe e devolve DTOs.
+**Fluxo de uma requisição:** `Controller` (HTTP + `@Valid`) → `Service` (regras + `@Transactional`) → `Repository` (JPA) → PostgreSQL. As entidades nunca saem do service: a API recebe e devolve DTOs.
 
 ## Banco de dados e migrações
 
@@ -269,7 +269,7 @@ Para recomeçar o banco de desenvolvimento do zero: `docker compose down -v` e `
 Em produção, a API roda com o perfil **`prod`** (`SPRING_PROFILES_ACTIVE=prod`), definido em `application-prod.properties`. Ele muda o seguinte:
 
 - **Swagger desligado:** `/swagger-ui.html` e `/v3/api-docs` respondem `404`, e o mapa das rotas do painel não fica público.
-- **Sem valores padrão de desenvolvimento:** nada de `localhost`, Mailpit ou `trustServerCertificate`. Se faltar uma variável obrigatória, a API **não sobe**. A exceção é o SMTP: sem ele, a API sobe, mas o login responde `503`.
+- **Sem valores padrão de desenvolvimento:** nada de `localhost` ou Mailpit. Se faltar uma variável obrigatória, a API **não sobe**. A exceção é o SMTP: sem ele, a API sobe, mas o login responde `503`.
 - **E-mail real:** SMTP com login e STARTTLS (porta 587), com timeouts para o login não travar se o servidor de e-mail não responder.
 - **Atrás de proxy HTTPS** (`server.forward-headers-strategy=framework`): o Cloud Run recebe em HTTPS e repassa para a API em HTTP. Com isso, a API lê os cabeçalhos `X-Forwarded-*` e gera links corretos, como o `Location` do `201` com `https://` e o domínio público.
 - **Sem SQL no log.**
@@ -279,7 +279,7 @@ Variáveis de ambiente do perfil `prod`, além de `ADMIN_EMAIL`, `ADMIN_PASSWORD
 | Variável | Exemplo |
 |---|---|
 | `SPRING_PROFILES_ACTIVE` | `prod` |
-| `DB_URL` | `jdbc:sqlserver://<host>:1433;databaseName=portfolio;encrypt=true` |
+| `DB_URL` | `jdbc:postgresql://<host>/portfolio?sslmode=require` (provedores gerenciados exigem TLS) |
 | `DB_USER` / `DB_PASSWORD` | Usuário e senha do banco de produção |
 | `MAIL_HOST` / `MAIL_PORT` | `smtp.gmail.com` / `587` (porta opcional; padrão `587`) |
 | `MAIL_USERNAME` / `MAIL_PASSWORD` | Conta SMTP (no Gmail, uma **senha de app**, não a senha da conta) |
@@ -306,8 +306,8 @@ A imagem já vem com `SPRING_PROFILES_ACTIVE=prod`, roda com um usuário **sem p
 docker build -t portfolio-api .
 
 docker run --rm -p 8080:8080 --env-file .env `
-  -e DB_URL="jdbc:sqlserver://host.docker.internal:1433;databaseName=portfolio;encrypt=true;trustServerCertificate=true" `
-  -e DB_USER=sa `
+  -e DB_URL="jdbc:postgresql://host.docker.internal:5433/portfolio" `
+  -e DB_USER=portfolio `
   -e MAIL_HOST=host.docker.internal -e MAIL_PORT=1025 -e MAIL_USERNAME=teste -e MAIL_PASSWORD=teste `
   -e MAIL_FROM=teste@exemplo.com -e CORS_ORIGINS=https://exemplo.github.io `
   portfolio-api
@@ -325,12 +325,14 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 | **A API recebe e devolve DTOs, nunca entidades** | O cliente não escolhe `id` nem campos internos, a validação fica no contrato de entrada e o JSON público não muda quando o banco muda. |
 | **Categorias e tipos como enums fixos** | Evitam grupos duplicados por erro de digitação (`Linguagem` vs `Linguagens`). O banco reforça com uma `CHECK` constraint e a API responde `400` listando os valores aceitos. |
 | **Duplicados: validados no service e garantidos no banco** | O service dá uma mensagem clara (`409`); a restrição `UNIQUE` no banco cobre o que escapar, como duas requisições simultâneas. |
-| **Dados Gerais com ID fixo + `CHECK (id = 1)`** | Com autoincremento, "sempre o ID 1" não é garantido (registro recriado ou saltos de `IDENTITY` no SQL Server). Com ID fixo, o próprio banco impede uma segunda linha. |
+| **Dados Gerais com ID fixo + `CHECK (id = 1)`** | Com autoincremento, "sempre o ID 1" não é garantido (registro recriado ou saltos de `IDENTITY`, já que inserções que falham consomem números). Com ID fixo, o próprio banco impede uma segunda linha. |
 | **2FA sempre obrigatório** | Há uma única conta. Um caminho único de login é mais simples de testar e não deixa a opção de, por engano, proteger o painel só com a senha. |
 | **JWT validado pelo OAuth2 Resource Server do Spring, não por um filtro próprio** | O filtro padrão já confere assinatura, expiração e emissor e é amplamente testado. Filtros de autenticação escritos à mão são uma fonte comum de falhas de segurança. |
 | **Sem refresh token nem revogação** | Um único administrador, com token de 2 horas: refazer o login é aceitável. Trocar o `JWT_SECRET` serve como "botão de emergência". |
 | **Migrações com Flyway; Hibernate só valida** | O `ddl-auto=update` não altera colunas existentes e deixou o banco de desenvolvimento diferente do código (colunas obrigatórias aceitando `NULL`, `projeto_tag` sem chave primária). Com scripts versionados, o esquema é revisável no Git e idêntico em todos os ambientes. |
-| **Testes contra um SQL Server real (Testcontainers), não H2** | Um banco em memória diferente esconderia comportamentos do SQL Server, como `NVARCHAR(MAX)`, comparação sem diferenciar maiúsculas e as constraints. |
+| **Testes contra um PostgreSQL real (Testcontainers), não H2** | Um banco em memória diferente esconderia comportamentos do PostgreSQL, como o índice único em `lower(nome)`, os tipos `TEXT`/`TIMESTAMPTZ` e as constraints. |
+| **PostgreSQL no lugar do SQL Server** | Trocado antes do primeiro deploy: é o banco relacional mais comum em projetos novos, tem planos gratuitos gerenciados (o SQL Server gerenciado custa a partir de dezenas de dólares por mês) e padroniza com outros projetos. Como nenhum banco de produção existia, a `V1` foi reescrita em vez de migrada. |
+| **Tag única sem diferenciar maiúsculas: índice em `lower(nome)`** | O PostgreSQL compara texto diferenciando maiúsculas. Um `UNIQUE INDEX` sobre a expressão `lower(nome)` faz o banco recusar "JAVA" quando já existe "Java", sem extensões (como `citext`). O service também confere (`IgnoreCase`) para responder `409` com uma mensagem clara. |
 
 ## Roadmap
 

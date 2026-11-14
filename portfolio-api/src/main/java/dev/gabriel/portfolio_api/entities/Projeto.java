@@ -27,7 +27,7 @@ public class Projeto {
 	@Column(nullable = false)
 	private String titulo;
 
-	@Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
+	@Column(nullable = false, columnDefinition = "TEXT")
 	private String descricao;
 
 	// Carrossel em que o projeto aparece (PROFISSIONAL ou ACADEMICO)
@@ -36,10 +36,10 @@ public class Projeto {
 	private TipoProjeto tipo;
 
 	// Para projetos com codigo privado (empresa): descreve sua atuacao no lugar do link do GitHub
-	@Column(columnDefinition = "NVARCHAR(MAX)")
+	@Column(columnDefinition = "TEXT")
 	private String papel;
 
-	@Column(columnDefinition = "NVARCHAR(MAX)")
+	@Column(columnDefinition = "TEXT")
 	private String desafios;
 
 	@Column(name = "capa_url")

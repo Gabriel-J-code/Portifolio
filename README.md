@@ -18,7 +18,7 @@ flowchart LR
     A["Administrador"] -->|"login + 2FA"| P["Painel admin<br/>(planejado)"]
     F -->|"HTTP/JSON"| API["portfolio-api<br/>Spring Boot"]
     P -->|"HTTP/JSON + JWT"| API
-    API --> DB[("SQL Server")]
+    API --> DB[("PostgreSQL")]
     API -->|"código de acesso"| M["E-mail (SMTP)"]
 ```
 
@@ -46,11 +46,11 @@ Diagrama gerado pelo DBeaver a partir do banco real. `projeto_tag` liga projetos
 | Parte | Tecnologias |
 |---|---|
 | Back-end | Java 17, Spring Boot 4 (Web MVC, Data JPA, Security, Validation), OAuth2 Resource Server (JWT), Spring Mail |
-| Banco de dados | SQL Server 2022 (Docker) |
-| Qualidade | JUnit 5, MockMvc, Testcontainers (testes de integração contra um SQL Server real) |
+| Banco de dados | PostgreSQL 17 (Docker) |
+| Qualidade | JUnit 5, MockMvc, Testcontainers (testes de integração contra um PostgreSQL real) |
 | Documentação da API | OpenAPI 3 / Swagger UI |
 | Front-end | Flutter Web |
-| Ambiente local | Docker Compose (SQL Server + Mailpit para capturar os e-mails) |
+| Ambiente local | Docker Compose (PostgreSQL + Mailpit para capturar os e-mails) |
 
 ## Como rodar
 
@@ -59,7 +59,7 @@ Hoje, a parte executável é a API. O passo a passo completo está no [README da
 ```bash
 cd portfolio-api
 cp .env.example .env      # defina as senhas
-docker compose up -d      # SQL Server + Mailpit
+docker compose up -d      # PostgreSQL + Mailpit
 ./mvnw spring-boot:run    # API em http://localhost:8080 (Swagger em /swagger-ui.html)
 ```
 

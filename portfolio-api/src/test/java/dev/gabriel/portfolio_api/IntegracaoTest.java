@@ -13,7 +13,7 @@ import dev.gabriel.portfolio_api.services.JwtService;
 
 /**
  * Base dos testes de integracao: aplicacao completa (controllers, services, seguranca, JPA)
- * contra um SQL Server real no Docker.
+ * contra um PostgreSQL real no Docker.
  *
  * - @SpringBootTest: sobe o contexto inteiro do Spring, como em producao.
  * - @AutoConfigureMockMvc: cria o MockMvc, que simula requisicoes HTTP sem abrir porta de rede.
@@ -30,10 +30,7 @@ import dev.gabriel.portfolio_api.services.JwtService;
         "JWT_SECRET=Y2hhdmUtZGUtdGVzdGUtY29tLTMyLWJ5dGVzLW9rISE=",
         // Origens do CORS: o padrao de desenvolvimento + um dominio "de producao" ficticio
         "CORS_ORIGINS=http://localhost:[*]," + IntegracaoTest.ORIGEM_PRODUCAO,
-        "spring.jpa.show-sql=false",
-        // Enquanto o container inicializa, o driver loga dezenas de "Prelogin error" (tentativas de conexao).
-        // Sao esperados e inofensivos; so poluem a saida.
-        "logging.level.com.microsoft.sqlserver.jdbc.internals.SQLServerConnection=ERROR"
+        "spring.jpa.show-sql=false"
 })
 @AutoConfigureMockMvc
 @Import(TestcontainersConfig.class)

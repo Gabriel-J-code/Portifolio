@@ -12,8 +12,8 @@ public interface TagRepository extends JpaRepository<Tag, Integer> {
 
     List<Tag> findAllByOrderByNomeAsc();
 
-    // IgnoreCase: "java" conta como duplicado de "Java", igual a restricao UNIQUE do SQL Server
-    // (a collation padrao do SQL Server compara textos sem diferenciar maiusculas/minusculas)
+    // IgnoreCase: "java" conta como duplicado de "Java", igual ao indice unico em lower(nome) do banco.
+    // O Spring Data gera "WHERE upper(nome) = upper(?)".
     boolean existsByNomeIgnoreCase(String nome);
 
     // Versao para o PUT: ignora a propria tag (renomear "java" para "Java" e permitido)

@@ -19,7 +19,8 @@ public class Tag {
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
-    @Column (nullable = false, unique = true)
+    // Unico sem diferenciar maiusculas: garantido no banco pelo indice uk_tags_nome em lower(nome) (V1)
+    @Column (nullable = false)
     private String nome;
     @Column (nullable = false)
     private String cor;

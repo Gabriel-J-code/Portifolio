@@ -1,6 +1,6 @@
 # CI da API: compila e roda todos os testes a cada push na main e a cada pull request.
 # Os testes de integracao usam Testcontainers: o runner ubuntu-latest ja tem Docker,
-# entao o SQL Server descartavel sobe igual na maquina local. Nenhum segredo e necessario
+# entao o PostgreSQL descartavel sobe igual na maquina local. Nenhum segredo e necessario
 # (as credenciais de teste ficam na classe IntegracaoTest).
 name: API - testes
 

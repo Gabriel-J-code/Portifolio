@@ -163,7 +163,7 @@ class TagControllerTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("O proprio SQL Server trata 'JAVA' e 'Java' como iguais na restricao UNIQUE")
+    @DisplayName("O proprio banco trata 'JAVA' e 'Java' como iguais (indice unico em lower(nome))")
     void bancoIgnoraMaiusculas() {
         tagRepository.saveAndFlush(new Tag(0, "Java", "#E76F00"));
 

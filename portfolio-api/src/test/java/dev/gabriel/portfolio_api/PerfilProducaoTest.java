@@ -30,7 +30,7 @@ import dev.gabriel.portfolio_api.services.JwtService;
  * Testcontainers (@ServiceConnection tem prioridade sobre DB_URL).
  */
 @SpringBootTest(properties = {
-        "DB_URL=jdbc:sqlserver://ignorado-pelo-testcontainers",
+        "DB_URL=jdbc:postgresql://ignorado-pelo-testcontainers/portfolio",
         "DB_USER=ignorado",
         "DB_PASSWORD=ignorado",
         "MAIL_HOST=smtp.exemplo.com",
@@ -40,8 +40,7 @@ import dev.gabriel.portfolio_api.services.JwtService;
         "CORS_ORIGINS=" + PerfilProducaoTest.ORIGEM_DO_FRONT,
         "ADMIN_EMAIL=gabriel@exemplo.com",
         "ADMIN_PASSWORD=senha-de-teste",
-        "JWT_SECRET=Y2hhdmUtZGUtdGVzdGUtY29tLTMyLWJ5dGVzLW9rISE=",
-        "logging.level.com.microsoft.sqlserver.jdbc.internals.SQLServerConnection=ERROR"
+        "JWT_SECRET=Y2hhdmUtZGUtdGVzdGUtY29tLTMyLWJ5dGVzLW9rISE="
 })
 @ActiveProfiles("prod")
 @AutoConfigureMockMvc
