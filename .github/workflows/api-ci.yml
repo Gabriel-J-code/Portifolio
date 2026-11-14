@@ -1,0 +1,61 @@
+# CI da API: compila e roda todos os testes a cada push na main e a cada pull request.
+# Os testes de integracao usam Testcontainers: o runner ubuntu-latest ja tem Docker,
+# entao o SQL Server descartavel sobe igual na maquina local. Nenhum segredo e necessario
+# (as credenciais de teste ficam na classe IntegracaoTest).
+name: API - testes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "portfolio-api/**"
+      - ".github/workflows/api-ci.yml"
+  pull_request:
+    paths:
+      - "portfolio-api/**"
+      - ".github/workflows/api-ci.yml"
+  workflow_dispatch: # botao "Run workflow" na aba Actions
+
+# Um novo push no mesmo branch cancela a execucao anterior (que ja ficou desatualizada)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Menor privilegio: o job so precisa ler o codigo
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: portfolio-api # a API fica numa subpasta do repositorio
+
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v5
+
+      - name: Instalar o JDK 17 (Temurin) com cache do Maven
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: portfolio-api/pom.xml
+
+      # verify = compila, roda os testes e empacota o .jar (garante que o build do Dockerfile tambem funciona)
+      # -B: modo nao interativo (log limpo) | -ntp: nao imprime o progresso de cada download
+      - name: Compilar e rodar os testes
+        run: ./mvnw -B -ntp verify
+
+      # Se algum teste falhar, guarda os relatorios do Surefire para baixar na aba Actions
+      - name: Publicar relatorios dos testes (em caso de falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-surefire
+          path: portfolio-api/target/surefire-reports/
+          retention-days: 7

@@ -1,5 +1,7 @@
 # Portfólio — Gabriel de Jesus
 
+[![API - testes](https://github.com/Gabriel-J-code/Portifolio/actions/workflows/api-ci.yml/badge.svg)](https://github.com/Gabriel-J-code/Portifolio/actions/workflows/api-ci.yml)
+
 Site de portfólio pessoal full-stack, com a minha trajetória profissional e acadêmica: estágios de P&D na UFPB, projetos da faculdade e o TCC.
 
 O projeto também é um laboratório: o back-end segue práticas usadas no mercado (API REST em camadas, autenticação em duas etapas, testes de integração contra um banco real, configuração por ambiente) em vez de um site estático.
@@ -37,6 +39,7 @@ Diagrama gerado pelo DBeaver a partir do banco real. `projeto_tag` liga projetos
 | [`portfolio-api/`](portfolio-api/) | API REST em Java 17 + Spring Boot 4 | [README da API](portfolio-api/README.md): como rodar, testar, endpoints e decisões de projeto |
 | [`web/`](web/) | Site em Flutter Web (ainda o projeto inicial) | Em breve |
 | [`doc/`](doc/) | Diagramas | [Modelo relacional](doc/modelo-relacional.png) |
+| [`.github/workflows/`](.github/workflows/) | CI no GitHub Actions (testes da API a cada push/PR) | [Integração contínua](portfolio-api/README.md#integração-contínua-github-actions) |
 
 ## Tecnologias
 
@@ -70,6 +73,7 @@ Pré-requisitos: JDK 17+ e Docker Desktop.
 - [ ] Site em Flutter Web: página única com as seções Sobre, Competências, Projetos e Contato
 - [ ] Painel administrativo para cadastrar o conteúdo
 - [x] API pronta para produção: migrações com Flyway, perfil de produção e imagem Docker
+- [x] CI: testes da API no GitHub Actions a cada push e pull request
 - [ ] Cache com Redis nas consultas públicas
 - [ ] Deploy: API no Google Cloud Run, site no GitHub Pages ou Cloudflare Pages
 

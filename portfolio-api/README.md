@@ -1,5 +1,7 @@
 # Portfolio API
 
+[![API - testes](https://github.com/Gabriel-J-code/Portifolio/actions/workflows/api-ci.yml/badge.svg)](https://github.com/Gabriel-J-code/Portifolio/actions/workflows/api-ci.yml)
+
 API REST que alimenta o portfólio pessoal de **Gabriel de Jesus**: projetos (P&D/estágios e acadêmicos), competências, contatos e dados de apresentação.
 
 O site público (Flutter Web) só **lê** os dados. O cadastro é feito por um painel administrativo privado, que usa os endpoints protegidos desta API.
@@ -211,6 +213,15 @@ Para rodar só uma classe:
 ./mvnw test -Dtest=ProjetoControllerTest
 ```
 
+### Integração contínua (GitHub Actions)
+
+O workflow [`.github/workflows/api-ci.yml`](../.github/workflows/api-ci.yml) roda `./mvnw verify` (compila, roda todos os testes e gera o `.jar`) a cada push na `main` e a cada pull request que mexa em `portfolio-api/`. Também dá para disparar à mão pela aba **Actions**.
+
+- O runner `ubuntu-latest` já tem Docker, então o Testcontainers sobe o SQL Server igual na sua máquina. **Nenhum segredo é necessário**: as credenciais de teste ficam no código de teste.
+- As dependências do Maven ficam em cache entre as execuções (`setup-java` com `cache: maven`), e o cache só é refeito quando o `pom.xml` muda.
+- Se um teste falhar, os relatórios do Surefire ficam disponíveis para download na execução (artefato `relatorios-surefire`, por 7 dias).
+- Um novo push no mesmo branch cancela a execução anterior.
+
 ## Estrutura do projeto
 
 ```
@@ -287,7 +298,7 @@ O `Dockerfile` gera a imagem que vai para produção. Ele tem dois estágios:
 
 A imagem já vem com `SPRING_PROFILES_ACTIVE=prod`, roda com um usuário **sem privilégios de root** e usa `-XX:MaxRAMPercentage=75` (por padrão a JVM usaria só 25% da memória do container). O `.dockerignore` impede que o `.env` entre na imagem.
 
-> Os **testes não rodam no `docker build`**: eles precisam do Docker (Testcontainers), que não existe dentro do build. Rode `.\mvnw test` antes de gerar a imagem (no futuro, o GitHub Actions faz isso).
+> Os **testes não rodam no `docker build`**: eles precisam do Docker (Testcontainers), que não existe dentro do build. Quem garante os testes é o [GitHub Actions](#integração-contínua-github-actions), a cada push. Localmente, rode `.\mvnw test` antes de gerar a imagem.
 
 **Testar a imagem localmente**, com o banco e o Mailpit do `docker compose up -d`. Dentro do container, `localhost` é o próprio container; o computador é `host.docker.internal`:
 
@@ -337,4 +348,5 @@ Escolhas feitas de propósito, com o motivo. O que está fora do escopo agora te
 - [x] Migrações de banco (Flyway) no lugar do `ddl-auto`
 - [x] Perfil de produção (Swagger desligado, SMTP real, proxy HTTPS, sem padrões de desenvolvimento)
 - [x] Dockerfile da API (multi-stage, camadas, usuário sem root)
+- [x] CI com GitHub Actions (testes a cada push e pull request)
 - [ ] Deploy no GCP Cloud Run
